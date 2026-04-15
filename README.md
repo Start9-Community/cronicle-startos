@@ -60,7 +60,7 @@ All persistent data lives under a single `main` volume, split into four subpath 
 
 On a fresh install Cronicle's own setup routine (`control.sh setup`) runs automatically on first start and seeds the database from `conf/setup.json`.
 
-The admin username is `admin`. The password is generated at install time and can be retrieved via the StartOS "Get Admin Credentials" action.
+The admin username is `admin`. The password is generated at install time and shown once via a critical task. If lost, you can change it in the Cronicle admin UI under Admin > Users.
 
 ---
 
@@ -89,7 +89,8 @@ Notable defaults set in `sample_conf/config.json`:
 
 | Action                  | Description                                      |
 | ----------------------- | ------------------------------------------------ |
-| Get Admin Credentials   | Shows the `admin` username and password          |
+| Get Admin Credentials   | Shows credentials once at install (hidden — triggered by install task) |
+| Configure SMTP          | Set up email sending (disabled / StartOS system SMTP / custom) |
 
 ---
 
@@ -121,7 +122,9 @@ None.
 
 2. **Single-master only (typical)** — Cronicle supports multi-server clustering. External workers reachable by public hostname/IP work normally. Workers only reachable by a private/container IP will not be accessible from the browser.
 
-3. **No HTTPS on the container** — Cronicle's internal server runs HTTP on port 3012. TLS termination is handled by the StartOS proxy.
+3. **Email requires SMTP configuration** — Cronicle defaults to `localhost:25` which has no mail daemon. Use the "Configure SMTP" action to point it at the StartOS system SMTP (if configured in StartOS settings) or a custom provider. Without this, job notification emails are silently dropped.
+
+4. **No HTTPS on the container** — Cronicle's internal server runs HTTP on port 3012. TLS termination is handled by the StartOS proxy.
 
 ---
 
@@ -156,7 +159,8 @@ ports:
 dependencies: none
 default_credentials: admin / retrieved via "Get Admin Credentials" action
 actions:
-  - change-admin-password
+  - get-admin-credentials  # hidden, shown once at install via critical task
+  - manage-smtp
 runtime_patches:
   - file: /opt/cronicle/htdocs/js/_combo.js
     reason: rewrite live-log WebSocket/API URLs to route through StartOS proxy

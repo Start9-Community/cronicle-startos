@@ -12,7 +12,10 @@ export const initializeService = sdk.setupOnInit(async (effects, kind) => {
     len: 22,
   })
 
-  await storeJson.write(effects, { adminPassword })
+  await storeJson.write(effects, {
+    adminPassword,
+    smtp: { selection: 'disabled', value: {} },
+  })
 
   await sdk.action.createOwnTask(effects, getAdminCredentials, 'critical', {
     reason: i18n('Retrieve your admin credentials'),

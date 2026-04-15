@@ -11,6 +11,8 @@ export default {
     6: 'Obtener credenciales de administrador',
     7: 'Obtén tu nombre de usuario y contraseña de administrador de Cronicle',
     8: 'Recupera tus credenciales de administrador',
+    9: 'Configurar SMTP',
+    10: 'Configura el envío de correos electrónicos para notificaciones de tareas',
   },
   de_DE: {
     0: 'Starte Cronicle',
@@ -22,6 +24,8 @@ export default {
     6: 'Admin-Zugangsdaten abrufen',
     7: 'Rufe deinen Cronicle-Admin-Benutzernamen und dein Passwort ab',
     8: 'Rufe deine Admin-Zugangsdaten ab',
+    9: 'SMTP konfigurieren',
+    10: 'Richte den E-Mail-Versand für Job-Benachrichtigungen ein',
   },
   pl_PL: {
     0: 'Uruchamianie Cronicle',
@@ -33,6 +37,8 @@ export default {
     6: 'Pobierz dane logowania administratora',
     7: 'Pobierz swoją nazwę użytkownika i hasło administratora Cronicle',
     8: 'Pobierz swoje dane logowania administratora',
+    9: 'Konfiguruj SMTP',
+    10: 'Skonfiguruj wysyłanie e-maili do powiadomień o zadaniach',
   },
   fr_FR: {
     0: 'Démarrage de Cronicle',
@@ -44,5 +50,7 @@ export default {
     6: 'Obtenir les identifiants administrateur',
     7: "Récupérez votre nom d'utilisateur et mot de passe administrateur Cronicle",
     8: 'Récupérez vos identifiants administrateur',
+    9: 'Configurer SMTP',
+    10: "Configurez l'envoi d'e-mails pour les notifications de tâches",
   },
 } satisfies Record<string, LangDict>

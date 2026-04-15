@@ -11,7 +11,7 @@ export const getAdminCredentials = sdk.Action.withoutInput(
     warning: null,
     allowedStatuses: 'any',
     group: null,
-    visibility: 'enabled',
+    visibility: 'hidden',
   }),
 
   async ({ effects }) => {
@@ -19,7 +19,7 @@ export const getAdminCredentials = sdk.Action.withoutInput(
     return {
       version: '1' as const,
       title: 'Admin Credentials',
-      message: 'Use these credentials to log into Cronicle.',
+      message: 'Save this password — you can change it later in the Cronicle admin UI under Admin > Users.',
       result: {
         type: 'group' as const,
         value: [

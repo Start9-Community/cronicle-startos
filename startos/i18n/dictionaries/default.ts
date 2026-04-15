@@ -17,6 +17,11 @@ const dict = {
 
   // init/initializeService.ts
   'Retrieve your admin credentials': 8,
+
+  // actions/manageSmtp.ts
+  'Configure SMTP': 9,
+  'Set up email sending for job notifications': 10,
+
 } as const
 
 /**

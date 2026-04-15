@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises'
 
+import { T } from '@start9labs/start-sdk'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import { uiPort } from './utils'
@@ -67,7 +68,62 @@ export const main = sdk.setupMain(async ({ effects }) => {
   // Two cases are covered:
   //   Fresh install  — patches conf/setup.json before the entrypoint runs setup
   //   Existing data  — finds and patches admin.json already in the data volume
-  const adminPassword = await storeJson.read((s) => s.adminPassword).once()
+  // Resolve SMTP credentials from the user's selection (system/custom/disabled).
+  // Runs with .const(effects) so the service restarts if the SMTP action is used.
+  const smtpSelection = await storeJson.read((s) => s.smtp).const(effects)
+  let smtpCredentials: T.SmtpValue | null = null
+
+  if (smtpSelection?.selection === 'system') {
+    smtpCredentials = await sdk.getSystemSmtp(effects).const()
+    if (smtpCredentials && smtpSelection.value.customFrom) {
+      smtpCredentials.from = smtpSelection.value.customFrom
+    }
+  } else if (smtpSelection?.selection === 'custom') {
+    const { host, from, username, password, security } = smtpSelection.value.provider.value
+    smtpCredentials = {
+      host,
+      port: Number(security.value.port),
+      from,
+      username,
+      password: password ?? null,
+      security: security.selection,
+    }
+  }
+
+  // Map resolved credentials to Cronicle's config.json fields.
+  // Written as a Node.js script that patches conf/config.json after seed-conf runs.
+  const cronSmtp = smtpCredentials
+    ? (() => {
+        const mailOptions: Record<string, unknown> = {
+          secure: smtpCredentials!.security === 'tls',
+          requireTLS: smtpCredentials!.security === 'starttls',
+        }
+        if (smtpCredentials!.username) {
+          mailOptions.auth = { user: smtpCredentials!.username, pass: smtpCredentials!.password ?? '' }
+        }
+        return {
+          smtp_hostname: smtpCredentials!.host,
+          smtp_port: smtpCredentials!.port,
+          email_from: smtpCredentials!.from,
+          mail_options: mailOptions,
+        }
+      })()
+    : { smtp_hostname: '', smtp_port: 25, email_from: 'admin@localhost', mail_options: {} }
+
+  const applySmtpScript = `
+const fs = require('fs');
+const patch = ${JSON.stringify(cronSmtp)};
+const cfgPath = '/opt/cronicle/conf/config.json';
+try {
+  const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+  Object.assign(cfg, patch);
+  fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, '\\t'));
+  console.log('SMTP config applied: ' + (patch.smtp_hostname || 'disabled'));
+} catch(e) { console.error('apply-smtp failed: ' + e.message); }
+`
+  await writeFile(`${cronicleSub.rootfs}/opt/cronicle/.apply-smtp.js`, applySmtpScript)
+
+  const adminPassword = await storeJson.read((s) => s.adminPassword).const(effects)
   if (adminPassword) {
     // The password formula used by pixl-server-user (Cronicle's auth layer) is:
     //   bcrypt.hashSync(plaintext + userSalt)     — to store
@@ -136,12 +192,19 @@ try {
       },
       requires: [],
     })
+    .addOneshot('apply-smtp', {
+      subcontainer: cronicleSub,
+      exec: {
+        command: ['node', '/opt/cronicle/.apply-smtp.js'],
+      },
+      requires: ['seed-conf'],
+    })
     .addOneshot('set-admin-password', {
       subcontainer: cronicleSub,
       exec: {
         command: ['node', '/opt/cronicle/.patch-password.js'],
       },
-      requires: ['seed-conf'],
+      requires: ['apply-smtp'],
     })
     .addDaemon('primary', {
       subcontainer: cronicleSub,
