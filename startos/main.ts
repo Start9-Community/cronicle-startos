@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 
 import { i18n } from './i18n'
 import { sdk } from './sdk'
@@ -20,6 +20,45 @@ export const main = sdk.setupMain(async ({ effects }) => {
     mounts,
     'cronicle-sub',
   )
+
+  // Patch _combo.js — the single bundled JS file the browser always loads (hardcoded in
+  // index.html).  Cronicle builds the live-log WebSocket and API URLs from the internal
+  // container IP/hostname — unreachable through the StartOS reverse proxy.
+  // We replace both URL-construction blocks in the JobDetails section so they always use
+  // location.origin instead.  We also delete _combo.js.gz so the server can't serve the
+  // stale pre-compressed version.
+  const comboPath = `${cronicleSub.rootfs}/opt/cronicle/htdocs/js/_combo.js`
+  let comboCode = await readFile(comboPath, 'utf8')
+
+  const patch1Marker = "var url = app.proto + job.hostname"
+  const patch2Marker = "var remote_api_url = app.proto + job.hostname"
+  if (!comboCode.includes(patch1Marker)) throw new Error(`_combo.js patch 1 marker not found — image may have changed`)
+  if (!comboCode.includes(patch2Marker)) throw new Error(`_combo.js patch 2 marker not found — image may have changed`)
+
+  // Block 1: live-log WebSocket url.
+  //   If job.hostname equals app.masterHostname (job runs on the local master), route through
+  //   the StartOS proxy via location.origin.  External workers keep the original direct connect.
+  //   Ends just before: $('#d_live_job_log').append(
+  comboCode = comboCode.replace(
+    /var url = app\.proto \+ job\.hostname[^;]+;[\s\S]*?(?=\$\('#d_live_job_log'\))/,
+    "var url = config.custom_live_log_socket_url ? config.custom_live_log_socket_url\n\t\t\t: (job.hostname === app.masterHostname) ? location.origin.replace(/^http/, 'ws')\n\t\t\t: app.proto + job.hostname + ':' + app.port; // StartOS\n\t\t",
+  )
+  if (comboCode.includes(patch1Marker)) throw new Error(`_combo.js patch 1 regex did not match — check lookahead`)
+
+  // Block 2: live-log view/download link base URL (HTTP, not WebSocket).
+  //   Same logic: master hostname → proxy, external worker → direct.
+  //   Ends just before: $('#d_live_job_view_link').html(
+  comboCode = comboCode.replace(
+    /var remote_api_url = app\.proto \+ job\.hostname[^;]+;[\s\S]*?(?=\$\('#d_live_job_view_link'\))/,
+    "var remote_api_url = config.custom_live_log_socket_url ? config.custom_live_log_socket_url + config.base_api_uri\n\t\t\t: (job.hostname === app.masterHostname) ? location.origin + config.base_api_uri\n\t\t\t: app.proto + job.hostname + ':' + app.port + config.base_api_uri; // StartOS\n\t\t",
+  )
+  if (comboCode.includes(patch2Marker)) throw new Error(`_combo.js patch 2 regex did not match — check lookahead`)
+
+  await writeFile(comboPath, comboCode)
+
+  // Remove the pre-compressed copy so the web server can't serve stale gzipped content.
+  const { unlink } = await import('node:fs/promises')
+  await unlink(`${cronicleSub.rootfs}/opt/cronicle/htdocs/js/_combo.js.gz`).catch(() => {})
 
   // Write a password patch script to the subcontainer rootfs.
   // It runs inside the container and uses Cronicle's own bcrypt-node module,
@@ -110,10 +149,6 @@ try {
         command: sdk.useEntrypoint(),
         env: {
           CRONICLE_foreground: '1',
-          // Disable direct WebSocket connect so socket.io uses location.host
-          // (the browser's current host/port), which routes through the StartOS
-          // reverse proxy instead of trying to reach the container hostname directly.
-          CRONICLE_web_direct_connect: '0',
         },
       },
       ready: {
