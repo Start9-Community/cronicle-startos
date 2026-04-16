@@ -192,12 +192,33 @@ try {
       },
       requires: [],
     })
+    .addOneshot('install-plugin-deps', {
+      subcontainer: cronicleSub,
+      exec: {
+        // For each plugin directory that has a package.json but no node_modules, run
+        // npm install.  Written as a multi-statement script so failures are visible.
+        command: [
+          'sh', '-c',
+          `set -e
+for dir in /opt/cronicle/plugins/*/; do
+  [ -d "$dir" ] || continue
+  [ -f "$dir/package.json" ] || continue
+  [ -d "$dir/node_modules" ] && continue
+  echo "--- installing npm deps for $dir ---"
+  cd "$dir"
+  npm install --production
+  echo "--- done: $dir ---"
+done`,
+        ],
+      },
+      requires: ['seed-conf'],
+    })
     .addOneshot('apply-smtp', {
       subcontainer: cronicleSub,
       exec: {
         command: ['node', '/opt/cronicle/.apply-smtp.js'],
       },
-      requires: ['seed-conf'],
+      requires: ['install-plugin-deps'],
     })
     .addOneshot('set-admin-password', {
       subcontainer: cronicleSub,
