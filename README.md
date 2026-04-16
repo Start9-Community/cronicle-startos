@@ -55,8 +55,10 @@ All persistent data lives under a single `main` volume, split into four subpath 
 ## Installation and First-Run Flow
 
 1. **`seed-conf`** (oneshot) — copies `sample_conf/` into `main/conf` if `config.json` does not yet exist.
-2. **`set-admin-password`** (oneshot) — patches the admin password hash into `conf/setup.json` (fresh install) and any existing `data/.../admin.json` (upgrade).
-3. **`primary`** (daemon) — starts Cronicle in foreground mode via the upstream entrypoint.
+2. **`install-plugin-deps`** (oneshot) — for any plugin directory under `main/plugins/` that contains a `package.json` but no `node_modules`, runs `npm install --production` inside the container. No-op on fresh installs.
+3. **`apply-smtp`** (oneshot) — writes the resolved SMTP credentials into `conf/config.json`.
+4. **`set-admin-password`** (oneshot) — patches the admin password hash into `conf/setup.json` (fresh install) and any existing `data/.../admin.json` (upgrade).
+5. **`primary`** (daemon) — starts Cronicle in foreground mode via the upstream entrypoint.
 
 On a fresh install Cronicle's own setup routine (`control.sh setup`) runs automatically on first start and seeds the database from `conf/setup.json`.
 
@@ -91,6 +93,14 @@ Notable defaults set in `sample_conf/config.json`:
 | ----------------------- | ------------------------------------------------ |
 | Get Admin Credentials   | Shows credentials once at install (hidden — triggered by install task) |
 | Configure SMTP          | Set up email sending (disabled / StartOS system SMTP / custom) |
+| Deploy Node.js Plugin   | Write a Node.js plugin script to `main/plugins/`. Optionally provide a `package.json`; dependencies are installed automatically via the `install-plugin-deps` oneshot on next restart. Returns the script path to register in Cronicle Admin → Plugins. |
+| Remove Plugin           | Delete a previously deployed plugin script or directory from `main/plugins/`. Always visible; shows a dynamic list of deployed plugins. |
+
+### Plugin Notes
+
+- **No npm by default** — the `install-plugin-deps` oneshot runs `npm install` inside the container, which requires outbound clearnet access. Without a configured outbound gateway (e.g. StartTunnel), npm cannot reach `registry.npmjs.org` and the install will fail. Node.js built-in modules (`https`, `http`, `fs`, `child_process`, `crypto`, etc.) work without any npm install.
+- **Registration is manual** — deploying a plugin writes the script to disk. You still need to register it in Cronicle under Admin → Plugins and configure its parameter fields there.
+- **Single-file vs directory plugins** — if no `package.json` is provided the script is saved as `plugins/<name>.js`; if `package.json` is provided it is saved as `plugins/<name>/index.js` alongside the `package.json`.
 
 ---
 
@@ -134,6 +144,7 @@ The Cronicle application, its configuration format, plugin system, job scheduler
 
 - `_combo.js` patched at service start to fix live-log URLs behind a reverse proxy
 - `conf/setup.json` and `data/.../admin.json` patched at service start to apply the stored admin password
+- `conf/config.json` patched at service start to apply SMTP credentials
 
 ---
 
@@ -161,6 +172,8 @@ default_credentials: admin / retrieved via "Get Admin Credentials" action
 actions:
   - get-admin-credentials  # hidden, shown once at install via critical task
   - manage-smtp
+  - deploy-plugin           # write a Node.js plugin script to main/plugins/
+  - remove-plugin           # delete a deployed plugin from main/plugins/
 runtime_patches:
   - file: /opt/cronicle/htdocs/js/_combo.js
     reason: rewrite live-log WebSocket/API URLs to route through StartOS proxy
