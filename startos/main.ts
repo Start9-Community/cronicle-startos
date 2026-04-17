@@ -125,26 +125,23 @@ try {
 
   const adminPassword = await storeJson.read((s) => s.adminPassword).const(effects)
   if (adminPassword) {
-    // The password formula used by pixl-server-user (Cronicle's auth layer) is:
-    //   bcrypt.hashSync(plaintext + userSalt)     — to store
-    //   bcrypt.compareSync(plaintext + userSalt, hash) — to verify
-    // where userSalt is the per-user `salt` field in the user record (default: "salty").
-    // Library: bcryptjs (dep of pixl-server-user, available in the container).
+    // pixl-server-user (Cronicle's auth layer) uses bcrypt-node and the formula:
+    //   store:  bcrypt.hashSync(plaintext + userSalt)        — userSalt is user.salt field
+    //   verify: bcrypt.compareSync(plaintext + userSalt, hash)
+    //
+    // pixl-server-storage (Filesystem engine) maps storage key → file path via MD5:
+    //   key "users/admin" → data/users/<md5[0:2]>/<md5[2:4]>/<md5[4:6]>/<md5>.json
+    //   MD5("users/admin") = 3468bc0c4e5f6aa06c7aee62212ac18f (constant, hardcoded below)
     const patchScript = `
-// bcrypt-node is a direct Cronicle dep at the top-level node_modules.
-// bcryptjs (used by pixl-server-user for verification) is nested and not resolvable
-// from here, but both implement standard bcrypt so hashes are interoperable.
 const bcrypt = require('/opt/cronicle/node_modules/bcrypt-node');
 const fs = require('fs');
-const { execSync } = require('child_process');
 const password = ${JSON.stringify(adminPassword)};
 
-function makeHash(plaintext, userSalt) {
-  return bcrypt.hashSync(plaintext + (userSalt || 'salty'), bcrypt.genSaltSync(10));
-}
+// Storage key "users/admin" maps to this fixed path via MD5 sharding.
+// MD5("users/admin") = 3468bc0c4e5f6aa06c7aee62212ac18f
+const dataFile = '/opt/cronicle/data/users/34/68/bc/3468bc0c4e5f6aa06c7aee62212ac18f.json';
 
-// 1. Patch conf/setup.json so fresh-install setup creates admin with our hash.
-//    storage-cli.js setup reads from conf/setup.json (not sample_conf).
+// 1. Patch conf/setup.json so a first-run storage-cli setup uses our password.
 const setupFile = '/opt/cronicle/conf/setup.json';
 if (fs.existsSync(setupFile)) {
   try {
@@ -152,7 +149,7 @@ if (fs.existsSync(setupFile)) {
     (setup.storage || []).forEach(function(item) {
       if (Array.isArray(item) && item[0] === 'put' && item[1] === 'users/admin' && item[2]) {
         const userSalt = item[2].salt || 'salty';
-        item[2].password = makeHash(password, userSalt);
+        item[2].password = bcrypt.hashSync(password + userSalt);
         console.log('Patched conf/setup.json (salt: ' + userSalt + ')');
       }
     });
@@ -160,23 +157,19 @@ if (fs.existsSync(setupFile)) {
   } catch(e) { console.error('Error patching setup.json: ' + e.message); }
 }
 
-// 2. Patch existing admin user records in the data volume.
-//    Covers existing installs where setup has already run.
-try {
-  const found = execSync('find /opt/cronicle/data -name admin.json 2>/dev/null').toString().trim();
-  if (!found) { console.log('No admin.json found — fresh install'); process.exit(0); }
-  found.split('\\n').filter(Boolean).forEach(function(file) {
-    try {
-      const user = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (user.username === 'admin') {
-        const userSalt = user.salt || 'salty';
-        user.password = makeHash(password, userSalt);
-        fs.writeFileSync(file, JSON.stringify(user));
-        console.log('Patched existing user: ' + file + ' (salt: ' + userSalt + ')');
-      }
-    } catch(e) { console.error('Error patching ' + file + ': ' + e.message); }
-  });
-} catch(e) { console.error('find failed: ' + e.message); }
+// 2. Patch the live admin user record in the data volume.
+if (fs.existsSync(dataFile)) {
+  try {
+    const user = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const userSalt = user.salt || 'salty';
+    user.password = bcrypt.hashSync(password + userSalt);
+    user.modified = Math.floor(Date.now() / 1000);
+    fs.writeFileSync(dataFile, JSON.stringify(user));
+    console.log('Patched admin user record (salt: ' + userSalt + ')');
+  } catch(e) { console.error('Error patching admin user record: ' + e.message); }
+} else {
+  console.log('Admin data file not found — will be created by first-run setup');
+}
 `
     await writeFile(`${cronicleSub.rootfs}/opt/cronicle/.patch-password.js`, patchScript)
   }

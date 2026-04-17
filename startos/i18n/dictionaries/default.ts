@@ -22,6 +22,15 @@ const dict = {
   'Configure SMTP': 9,
   'Set up email sending for job notifications': 10,
 
+  // actions/resetAdminPassword.ts
+  'Reset Admin Password': 11,
+  'Change the password for the Cronicle admin account': 12,
+  'The service will restart automatically to apply the new password.': 13,
+  'New Password': 14,
+  'The new password for the Cronicle admin account': 15,
+  'Password Saved': 16,
+  'Admin password updated. The service is restarting to apply the change.': 17,
+
 } as const
 
 /**
