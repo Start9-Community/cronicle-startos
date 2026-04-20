@@ -15,7 +15,7 @@ export const getAdminCredentials = sdk.Action.withoutInput(
   }),
 
   async ({ effects }) => {
-    const store = await storeJson.read().once()
+    const store = await storeJson.read().const(effects)
     return {
       version: '1' as const,
       title: 'Admin Credentials',
