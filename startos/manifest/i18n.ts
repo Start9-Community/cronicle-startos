@@ -3,7 +3,7 @@ export const short = {
   es_ES: 'Un programador de tareas autoalojado con interfaz web',
   de_DE: 'Ein selbst gehosteter Task-Planer mit Web-Oberfläche',
   pl_PL: 'Samohost harmonogram zadań z interfejsem webowym',
-  fr_FR: "Un planificateur de tâches auto-hébergé avec interface web",
+  fr_FR: 'Un planificateur de tâches auto-hébergé avec interface web',
 }
 
 export const long = {

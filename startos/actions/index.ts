@@ -1,13 +1,11 @@
 import { sdk } from '../sdk'
 import { deployPlugin } from './deployPlugin'
-import { getAdminCredentials } from './getAdminCredentials'
 import { manageSmtp } from './manageSmtp'
 import { removePlugin } from './removePlugin'
-import { resetAdminPassword } from './resetAdminPassword'
+import { setAdminPassword } from './setAdminPassword'
 
 export const actions = sdk.Actions.of()
-  .addAction(getAdminCredentials)
-  .addAction(resetAdminPassword)
+  .addAction(setAdminPassword)
   .addAction(manageSmtp)
   .addAction(deployPlugin)
   .addAction(removePlugin)

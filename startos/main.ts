@@ -10,10 +10,30 @@ export const main = sdk.setupMain(async ({ effects }) => {
   console.info(i18n('Starting Cronicle'))
 
   const mounts = sdk.Mounts.of()
-    .mountVolume({ volumeId: 'main', subpath: 'data', mountpoint: '/opt/cronicle/data', readonly: false })
-    .mountVolume({ volumeId: 'main', subpath: 'conf', mountpoint: '/opt/cronicle/conf', readonly: false })
-    .mountVolume({ volumeId: 'main', subpath: 'logs', mountpoint: '/opt/cronicle/logs', readonly: false })
-    .mountVolume({ volumeId: 'main', subpath: 'plugins', mountpoint: '/opt/cronicle/plugins', readonly: false })
+    .mountVolume({
+      volumeId: 'main',
+      subpath: 'data',
+      mountpoint: '/opt/cronicle/data',
+      readonly: false,
+    })
+    .mountVolume({
+      volumeId: 'main',
+      subpath: 'conf',
+      mountpoint: '/opt/cronicle/conf',
+      readonly: false,
+    })
+    .mountVolume({
+      volumeId: 'main',
+      subpath: 'logs',
+      mountpoint: '/opt/cronicle/logs',
+      readonly: false,
+    })
+    .mountVolume({
+      volumeId: 'main',
+      subpath: 'plugins',
+      mountpoint: '/opt/cronicle/plugins',
+      readonly: false,
+    })
 
   const cronicleSub = await sdk.SubContainer.of(
     effects,
@@ -31,10 +51,16 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const comboPath = `${cronicleSub.rootfs}/opt/cronicle/htdocs/js/_combo.js`
   let comboCode = await readFile(comboPath, 'utf8')
 
-  const patch1Marker = "var url = app.proto + job.hostname"
-  const patch2Marker = "var remote_api_url = app.proto + job.hostname"
-  if (!comboCode.includes(patch1Marker)) throw new Error(`_combo.js patch 1 marker not found — image may have changed`)
-  if (!comboCode.includes(patch2Marker)) throw new Error(`_combo.js patch 2 marker not found — image may have changed`)
+  const patch1Marker = 'var url = app.proto + job.hostname'
+  const patch2Marker = 'var remote_api_url = app.proto + job.hostname'
+  if (!comboCode.includes(patch1Marker))
+    throw new Error(
+      `_combo.js patch 1 marker not found — image may have changed`,
+    )
+  if (!comboCode.includes(patch2Marker))
+    throw new Error(
+      `_combo.js patch 2 marker not found — image may have changed`,
+    )
 
   // Block 1: live-log WebSocket url.
   //   If job.hostname equals app.masterHostname (job runs on the local master), route through
@@ -44,7 +70,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
     /var url = app\.proto \+ job\.hostname[^;]+;[\s\S]*?(?=\$\('#d_live_job_log'\))/,
     "var url = config.custom_live_log_socket_url ? config.custom_live_log_socket_url\n\t\t\t: (job.hostname === app.masterHostname) ? location.origin.replace(/^http/, 'ws')\n\t\t\t: app.proto + job.hostname + ':' + app.port; // StartOS\n\t\t",
   )
-  if (comboCode.includes(patch1Marker)) throw new Error(`_combo.js patch 1 regex did not match — check lookahead`)
+  if (comboCode.includes(patch1Marker))
+    throw new Error(`_combo.js patch 1 regex did not match — check lookahead`)
 
   // Block 2: live-log view/download link base URL (HTTP, not WebSocket).
   //   Same logic: master hostname → proxy, external worker → direct.
@@ -53,24 +80,24 @@ export const main = sdk.setupMain(async ({ effects }) => {
     /var remote_api_url = app\.proto \+ job\.hostname[^;]+;[\s\S]*?(?=\$\('#d_live_job_view_link'\))/,
     "var remote_api_url = config.custom_live_log_socket_url ? config.custom_live_log_socket_url + config.base_api_uri\n\t\t\t: (job.hostname === app.masterHostname) ? location.origin + config.base_api_uri\n\t\t\t: app.proto + job.hostname + ':' + app.port + config.base_api_uri; // StartOS\n\t\t",
   )
-  if (comboCode.includes(patch2Marker)) throw new Error(`_combo.js patch 2 regex did not match — check lookahead`)
+  if (comboCode.includes(patch2Marker))
+    throw new Error(`_combo.js patch 2 regex did not match — check lookahead`)
 
   await writeFile(comboPath, comboCode)
 
   // Remove the pre-compressed copy so the web server can't serve stale gzipped content.
   const { unlink } = await import('node:fs/promises')
-  await unlink(`${cronicleSub.rootfs}/opt/cronicle/htdocs/js/_combo.js.gz`).catch(() => {})
+  await unlink(
+    `${cronicleSub.rootfs}/opt/cronicle/htdocs/js/_combo.js.gz`,
+  ).catch(() => {})
 
-  // Write a password patch script to the subcontainer rootfs.
-  // It runs inside the container and uses Cronicle's own bcrypt-node module,
-  // so the hash format exactly matches what Cronicle expects.
-  //
-  // Two cases are covered:
-  //   Fresh install  — patches conf/setup.json before the entrypoint runs setup
-  //   Existing data  — finds and patches admin.json already in the data volume
+  // Read the store once, reactively: a change to either the SMTP selection
+  // (Configure SMTP action) or the admin password (Set Admin Password action)
+  // restarts the service so the new value is applied below.
+  const store = await storeJson.read().const(effects)
+
   // Resolve SMTP credentials from the user's selection (system/custom/disabled).
-  // Runs with .const(effects) so the service restarts if the SMTP action is used.
-  const smtpSelection = await storeJson.read((s) => s.smtp).const(effects)
+  const smtpSelection = store?.smtp
   let smtpCredentials: T.SmtpValue | null = null
 
   if (smtpSelection?.selection === 'system') {
@@ -79,7 +106,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
       smtpCredentials.from = smtpSelection.value.customFrom
     }
   } else if (smtpSelection?.selection === 'custom') {
-    const { host, from, username, password, security } = smtpSelection.value.provider.value
+    const { host, from, username, password, security } =
+      smtpSelection.value.provider.value
     smtpCredentials = {
       host,
       port: Number(security.value.port),
@@ -99,7 +127,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
           requireTLS: smtpCredentials!.security === 'starttls',
         }
         if (smtpCredentials!.username) {
-          mailOptions.auth = { user: smtpCredentials!.username, pass: smtpCredentials!.password ?? '' }
+          mailOptions.auth = {
+            user: smtpCredentials!.username,
+            pass: smtpCredentials!.password ?? '',
+          }
         }
         return {
           smtp_hostname: smtpCredentials!.host,
@@ -108,7 +139,12 @@ export const main = sdk.setupMain(async ({ effects }) => {
           mail_options: mailOptions,
         }
       })()
-    : { smtp_hostname: '', smtp_port: 25, email_from: 'admin@localhost', mail_options: {} }
+    : {
+        smtp_hostname: '',
+        smtp_port: 25,
+        email_from: 'admin@localhost',
+        mail_options: {},
+      }
 
   const applySmtpScript = `
 const fs = require('fs');
@@ -121,9 +157,17 @@ try {
   console.log('SMTP config applied: ' + (patch.smtp_hostname || 'disabled'));
 } catch(e) { console.error('apply-smtp failed: ' + e.message); }
 `
-  await writeFile(`${cronicleSub.rootfs}/opt/cronicle/.apply-smtp.js`, applySmtpScript)
+  await writeFile(
+    `${cronicleSub.rootfs}/opt/cronicle/.apply-smtp.js`,
+    applySmtpScript,
+  )
 
-  const adminPassword = await storeJson.read((s) => s.adminPassword).const(effects)
+  // Write a password patch script to the subcontainer rootfs. It runs inside the
+  // container and uses Cronicle's own bcrypt-node module, so the hash format
+  // matches what Cronicle expects. Two cases are covered:
+  //   Fresh install  — patches conf/setup.json before the entrypoint runs setup
+  //   Existing data  — finds and patches admin.json already in the data volume
+  const adminPassword = store?.adminPassword
   if (adminPassword) {
     // pixl-server-user (Cronicle's auth layer) uses bcrypt-node and the formula:
     //   store:  bcrypt.hashSync(plaintext + userSalt)        — userSalt is user.salt field
@@ -171,7 +215,19 @@ if (fs.existsSync(dataFile)) {
   console.log('Admin data file not found — will be created by first-run setup');
 }
 `
-    await writeFile(`${cronicleSub.rootfs}/opt/cronicle/.patch-password.js`, patchScript)
+    await writeFile(
+      `${cronicleSub.rootfs}/opt/cronicle/.patch-password.js`,
+      patchScript,
+    )
+  } else {
+    // No password pending — write a no-op so the set-admin-password oneshot
+    // still succeeds. A password is only pending right after install (the
+    // generated one, until it's retrieved) or after the Reset Admin Password
+    // action; otherwise Cronicle keeps the credential in its own data volume.
+    await writeFile(
+      `${cronicleSub.rootfs}/opt/cronicle/.patch-password.js`,
+      'process.exit(0)\n',
+    )
   }
 
   return sdk.Daemons.of(effects)
@@ -179,7 +235,8 @@ if (fs.existsSync(dataFile)) {
       subcontainer: cronicleSub,
       exec: {
         command: [
-          'sh', '-c',
+          'sh',
+          '-c',
           'test -f /opt/cronicle/conf/config.json || cp -r /opt/cronicle/sample_conf/. /opt/cronicle/conf/',
         ],
       },
@@ -191,7 +248,8 @@ if (fs.existsSync(dataFile)) {
         // For each plugin directory that has a package.json but no node_modules, run
         // npm install.  Written as a multi-statement script so failures are visible.
         command: [
-          'sh', '-c',
+          'sh',
+          '-c',
           `set -e
 for dir in /opt/cronicle/plugins/*/; do
   [ -d "$dir" ] || continue

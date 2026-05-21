@@ -1,4 +1,4 @@
-import { VersionInfo } from '@start9labs/start-sdk'
+import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const v_0_9_80_0 = VersionInfo.of({
   version: '0.9.80:0',
@@ -11,6 +11,6 @@ export const v_0_9_80_0 = VersionInfo.of({
   },
   migrations: {
     up: async ({ effects }) => {},
-    down: async ({ effects }) => {},
+    down: IMPOSSIBLE,
   },
 })

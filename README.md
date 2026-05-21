@@ -57,12 +57,12 @@ All persistent data lives under a single `main` volume, split into four subpath 
 1. **`seed-conf`** (oneshot) — copies `sample_conf/` into `main/conf` if `config.json` does not yet exist.
 2. **`install-plugin-deps`** (oneshot) — for any plugin directory under `main/plugins/` that contains a `package.json` but no `node_modules`, runs `npm install --production` inside the container. No-op on fresh installs.
 3. **`apply-smtp`** (oneshot) — writes the resolved SMTP credentials into `conf/config.json`.
-4. **`set-admin-password`** (oneshot) — patches the admin password hash into `conf/setup.json` (fresh install) and any existing `data/.../admin.json` (upgrade).
+4. **`set-admin-password`** (oneshot) — when a password is present in the store, patches the hash into `conf/setup.json` (fresh install) and any existing `data/.../admin.json`. A no-op when no password is set yet.
 5. **`primary`** (daemon) — starts Cronicle in foreground mode via the upstream entrypoint.
 
 On a fresh install Cronicle's own setup routine (`control.sh setup`) runs automatically on first start and seeds the database from `conf/setup.json`.
 
-The admin username is `admin`. The password is generated at install time and shown once via a critical task. If lost, you can change it in the Cronicle admin UI under Admin > Users.
+The admin username is `admin`. No password is generated at install. Instead, a `watchCredentials` init step surfaces a **critical task** prompting the user to run the **Set Admin Password** action before signing in. That action generates a random password, stores it (the package's source of truth, read by `main` to patch Cronicle on start), and returns it to the user. Re-running the action rotates the password.
 
 ---
 
@@ -91,7 +91,7 @@ Notable defaults set in `sample_conf/config.json`:
 
 | Action                  | Description                                      |
 | ----------------------- | ------------------------------------------------ |
-| Get Admin Credentials   | Shows credentials once at install (hidden — triggered by install task) |
+| Set Admin Password      | Generate a random admin password (first-set via the install task, and rotation later); stores it, returns it, and restarts to apply |
 | Configure SMTP          | Set up email sending (disabled / StartOS system SMTP / custom) |
 | Deploy Node.js Plugin   | Write a Node.js plugin script to `main/plugins/`. Optionally provide a `package.json`; dependencies are installed automatically via the `install-plugin-deps` oneshot on next restart. Returns the script path to register in Cronicle Admin → Plugins. |
 | Remove Plugin           | Delete a previously deployed plugin script or directory from `main/plugins/`. Always visible; shows a dynamic list of deployed plugins. |
@@ -108,7 +108,7 @@ Notable defaults set in `sample_conf/config.json`:
 
 **Included in backup:** the full `main` volume (`data`, `conf`, `logs`, `plugins`).
 
-**Restore behavior:** the volume is restored before the service starts. The `set-admin-password` oneshot re-applies the stored password on every start, so credentials retrieved via "Get Admin Credentials" remain valid after a restore.
+**Restore behavior:** the volume is restored before the service starts. Both Cronicle's own `admin.json` (in `data`) and the password stored in `main/store.json` come back with the volume, and `main` re-applies the stored password on start — so logins remain valid after a restore.
 
 ---
 
@@ -143,7 +143,7 @@ None.
 The Cronicle application, its configuration format, plugin system, job scheduler, and all API endpoints are unmodified. The only changes are:
 
 - `_combo.js` patched at service start to fix live-log URLs behind a reverse proxy
-- `conf/setup.json` and `data/.../admin.json` patched at service start to apply the stored admin password
+- `conf/setup.json` / `data/.../admin.json` patched only when a password is set in the store (via the Set Admin Password action); otherwise this is a no-op
 - `conf/config.json` patched at service start to apply SMTP credentials
 
 ---
@@ -168,9 +168,9 @@ volumes:
 ports:
   ui: 3012
 dependencies: none
-default_credentials: admin / retrieved via "Get Admin Credentials" action
+default_credentials: admin / password set via "Set Admin Password" action (prompted by a critical task on install)
 actions:
-  - get-admin-credentials  # hidden, shown once at install via critical task
+  - set-admin-password      # generate+store+return admin password; first-set via install task, also rotation
   - manage-smtp
   - deploy-plugin           # write a Node.js plugin script to main/plugins/
   - remove-plugin           # delete a deployed plugin from main/plugins/
