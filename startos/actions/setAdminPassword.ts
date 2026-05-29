@@ -22,7 +22,14 @@ export const setAdminPassword = sdk.Action.withoutInput(
       charset: 'a-z,A-Z,0-9',
       len: 22,
     })
-    await storeJson.merge(effects, { adminPassword })
+    // Queue the password as a one-time trigger and record that one has been set.
+    // main reads pendingAdminPassword non-reactively, so it won't restart on this
+    // write — we drive the restart-to-apply explicitly.
+    await storeJson.merge(effects, {
+      pendingAdminPassword: adminPassword,
+      adminPasswordSet: true,
+    })
+    await sdk.restart(effects)
 
     return {
       version: '1',

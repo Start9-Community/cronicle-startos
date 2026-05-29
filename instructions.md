@@ -19,7 +19,7 @@ Cronicle is a self-hosted task scheduler with a web UI — a visual replacement 
 
 - **Live job logs** are routed through the StartOS proxy, so watching a running job's output in the browser works out of the box for jobs running on this server.
 - **Multi-server clustering** works for external workers reachable by public hostname or IP. Workers reachable only on a private/container network won't be accessible from your browser.
-- **Backups** capture all Cronicle data — jobs, history, configuration, and deployed plugins. Your admin password is re-applied automatically after a restore.
+- **Backups** capture all Cronicle data — jobs, history, configuration, and deployed plugins. Your admin password is part of that data, so it carries over after a restore.
 
 ## Documentation
 

@@ -57,12 +57,13 @@ All persistent data lives under a single `main` volume, split into four subpath 
 1. **`seed-conf`** (oneshot) — copies `sample_conf/` into `main/conf` if `config.json` does not yet exist.
 2. **`install-plugin-deps`** (oneshot) — for any plugin directory under `main/plugins/` that contains a `package.json` but no `node_modules`, runs `npm install --production` inside the container. No-op on fresh installs.
 3. **`apply-smtp`** (oneshot) — writes the resolved SMTP credentials into `conf/config.json`.
-4. **`set-admin-password`** (oneshot) — when a password is present in the store, patches the hash into `conf/setup.json` (fresh install) and any existing `data/.../admin.json`. A no-op when no password is set yet.
-5. **`primary`** (daemon) — starts Cronicle in foreground mode via the upstream entrypoint.
+4. **`set-admin-password`** (oneshot) — when a password is *pending* (just queued by the Set Admin Password action), patches the hash into `conf/setup.json` (fresh install) and any existing `data/.../admin.json`. A no-op otherwise.
+5. **`clear-pending-admin-password`** (oneshot) — once the password has been applied, clears the pending trigger so it is applied exactly once and not re-applied on later restarts.
+6. **`primary`** (daemon) — starts Cronicle in foreground mode via the upstream entrypoint.
 
 On a fresh install Cronicle's own setup routine (`control.sh setup`) runs automatically on first start and seeds the database from `conf/setup.json`.
 
-The admin username is `admin`. No password is generated at install. Instead, a `watchCredentials` init step surfaces a **critical task** prompting the user to run the **Set Admin Password** action before signing in. That action generates a random password, stores it (the package's source of truth, read by `main` to patch Cronicle on start), and returns it to the user. Re-running the action rotates the password.
+The admin username is `admin`. No password is generated at install. Instead, a `watchCredentials` init step surfaces a **critical task** (gated on the persistent `adminPasswordSet` flag) prompting the user to run the **Set Admin Password** action before signing in. That action generates a random password, queues it as a one-time `pendingAdminPassword` trigger, restarts the service to apply it once, and returns it to the user; `main` then clears the trigger. After it has been applied, Cronicle owns the credential in its own data volume, so a password later changed inside Cronicle (Admin → Users) is no longer overwritten on restart. Re-running the action rotates the password.
 
 ---
 
@@ -143,7 +144,7 @@ None.
 The Cronicle application, its configuration format, plugin system, job scheduler, and all API endpoints are unmodified. The only changes are:
 
 - `_combo.js` patched at service start to fix live-log URLs behind a reverse proxy
-- `conf/setup.json` / `data/.../admin.json` patched only when a password is set in the store (via the Set Admin Password action); otherwise this is a no-op
+- `conf/setup.json` / `data/.../admin.json` patched once when a password is pending (just queued by the Set Admin Password action), then the trigger is cleared; a no-op on later restarts
 - `conf/config.json` patched at service start to apply SMTP credentials
 
 ---
@@ -170,7 +171,7 @@ ports:
 dependencies: none
 default_credentials: admin / password set via "Set Admin Password" action (prompted by a critical task on install)
 actions:
-  - set-admin-password      # generate+store+return admin password; first-set via install task, also rotation
+  - set-admin-password      # generate+queue+return admin password (applied once on restart); first-set via install task, also rotation
   - manage-smtp
   - deploy-plugin           # write a Node.js plugin script to main/plugins/
   - remove-plugin           # delete a deployed plugin from main/plugins/
