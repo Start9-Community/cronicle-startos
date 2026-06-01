@@ -91,13 +91,18 @@ export const main = sdk.setupMain(async ({ effects }) => {
     `${cronicleSub.rootfs}/opt/cronicle/htdocs/js/_combo.js.gz`,
   ).catch(() => {})
 
-  // Read the store once, reactively: a change to either the SMTP selection
-  // (Configure SMTP action) or the admin password (Set Admin Password action)
-  // restarts the service so the new value is applied below.
-  const store = await storeJson.read().const(effects)
+  // SMTP selection is persistent config: read it reactively (mapped) so changing it
+  // via the Configure SMTP action restarts the service to re-apply it below.
+  const smtpSelection = await storeJson.read((s) => s.smtp).const(effects)
 
-  // Resolve SMTP credentials from the user's selection (system/custom/disabled).
-  const smtpSelection = store?.smtp
+  // The admin password is a one-time trigger: read it NON-reactively (.once) so that
+  // clearing it after we apply it (clear-pending-admin-password oneshot, below) does
+  // not restart main. The Set Admin Password action drives its own restart via
+  // sdk.restart. Reading it via a reactive .const — as this used to — is exactly what
+  // re-applied the stored password on every restart, reverting any password the user
+  // had changed inside Cronicle itself.
+  const pendingAdminPassword =
+    (await storeJson.read((s) => s.pendingAdminPassword).once()) ?? null
   let smtpCredentials: T.SmtpValue | null = null
 
   if (smtpSelection?.selection === 'system') {
@@ -167,8 +172,7 @@ try {
   // matches what Cronicle expects. Two cases are covered:
   //   Fresh install  — patches conf/setup.json before the entrypoint runs setup
   //   Existing data  — finds and patches admin.json already in the data volume
-  const adminPassword = store?.adminPassword
-  if (adminPassword) {
+  if (pendingAdminPassword) {
     // pixl-server-user (Cronicle's auth layer) uses bcrypt-node and the formula:
     //   store:  bcrypt.hashSync(plaintext + userSalt)        — userSalt is user.salt field
     //   verify: bcrypt.compareSync(plaintext + userSalt, hash)
@@ -179,7 +183,7 @@ try {
     const patchScript = `
 const bcrypt = require('/opt/cronicle/node_modules/bcrypt-node');
 const fs = require('fs');
-const password = ${JSON.stringify(adminPassword)};
+const password = ${JSON.stringify(pendingAdminPassword)};
 
 // Storage key "users/admin" maps to this fixed path via MD5 sharding.
 // MD5("users/admin") = 3468bc0c4e5f6aa06c7aee62212ac18f
@@ -278,6 +282,26 @@ done`,
       },
       requires: ['apply-smtp'],
     })
+    .addOneshot('clear-pending-admin-password', () =>
+      // The password was baked into .patch-password.js and written by the
+      // set-admin-password oneshot into conf/setup.json and/or the live admin record
+      // (both on the persistent volume). Clear the one-time trigger now that it's been
+      // applied, so it isn't re-applied — and isn't reverted-on-restart — on the next
+      // boot. pendingAdminPassword is read .once above, so this write does not restart
+      // main; gated on set-admin-password so a failed apply retries next startup.
+      pendingAdminPassword
+        ? {
+            subcontainer: null,
+            exec: {
+              fn: async () => {
+                await storeJson.merge(effects, { pendingAdminPassword: null })
+                return null
+              },
+            },
+            requires: ['set-admin-password'],
+          }
+        : null,
+    )
     .addDaemon('primary', {
       subcontainer: cronicleSub,
       exec: {
