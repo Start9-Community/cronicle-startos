@@ -3,18 +3,13 @@ import { sdk } from '../sdk'
 import { storeJson } from '../fileModels/store.json'
 
 export const current = VersionInfo.of({
-  version: '0.9.80:3',
+  version: '0.9.80:4',
   releaseNotes: {
-    en_US:
-      'Fixes the admin password being re-applied on every restart, which silently reverted any password changed inside Cronicle.',
-    es_ES:
-      'Corrige que la contraseña de administrador se reaplicara en cada reinicio, lo que revertía silenciosamente cualquier contraseña cambiada dentro de Cronicle.',
-    de_DE:
-      'Behebt, dass das Admin-Passwort bei jedem Neustart erneut angewendet wurde, wodurch ein innerhalb von Cronicle geändertes Passwort stillschweigend zurückgesetzt wurde.',
-    pl_PL:
-      'Naprawia ponowne stosowanie hasła administratora przy każdym restarcie, co po cichu cofało hasło zmienione wewnątrz Cronicle.',
-    fr_FR:
-      "Corrige la réapplication du mot de passe administrateur à chaque redémarrage, qui annulait silencieusement tout mot de passe modifié dans Cronicle.",
+    en_US: 'Internal updates (start-sdk 2.0.x)',
+    es_ES: 'Actualizaciones internas (start-sdk 2.0.x)',
+    de_DE: 'Interne Aktualisierungen (start-sdk 2.0.x)',
+    pl_PL: 'Aktualizacje wewnętrzne (start-sdk 2.0.x)',
+    fr_FR: 'Mises à jour internes (start-sdk 2.0.x)',
   },
   migrations: {
     // Pre-0.9.80:3 the admin password lived in store.json `adminPassword`, which main

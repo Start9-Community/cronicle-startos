@@ -35,7 +35,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
       readonly: false,
     })
 
-  const cronicleSub = await sdk.SubContainer.of(
+  const cronicleSub = await sdk.SubContainer.eager(
     effects,
     { imageId: 'cronicle' },
     mounts,
