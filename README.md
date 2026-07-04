@@ -5,7 +5,7 @@
 # Cronicle on StartOS
 
 > **Upstream repo:** <https://github.com/jhuckaby/Cronicle>  
-> **Docker image:** `soulteary/cronicle:0.9.80`
+> **Built from source** — see [`Dockerfile`](Dockerfile)
 
 Cronicle is a multi-server task scheduler and runner with a web UI. It replaces cron with a visual interface for managing scheduled jobs, viewing live logs, and tracking job history.
 
@@ -33,9 +33,9 @@ Cronicle is a multi-server task scheduler and runner with a web UI. It replaces 
 
 | Property      | Value                      |
 | ------------- | -------------------------- |
-| Image         | `soulteary/cronicle:0.9.80` |
+| Image         | Built from source (see [`Dockerfile`](Dockerfile)) |
 | Architectures | x86_64, aarch64            |
-| Entrypoint    | upstream default           |
+| Entrypoint    | `assets/docker-entrypoint.js` (first-boot storage setup + single-node master election) |
 
 ---
 
@@ -159,7 +159,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions and development wo
 
 ```yaml
 package_id: cronicle
-image: soulteary/cronicle:0.9.80
+image: built from source (Dockerfile, official jhuckaby/Cronicle release)
 architectures: [x86_64, aarch64]
 volumes:
   main/data:    /opt/cronicle/data
