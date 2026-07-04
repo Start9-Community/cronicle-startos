@@ -5,7 +5,7 @@ export const manifest = setupManifest({
   id: 'cronicle',
   title: 'Cronicle',
   license: 'MIT',
-  packageRepo: 'https://github.com/saiththerobo/cronicle-startos',
+  packageRepo: 'https://github.com/Start9-Community/cronicle-startos',
   upstreamRepo: 'https://github.com/jhuckaby/Cronicle',
   marketingUrl: 'https://cronicle.net/',
   donationUrl: null,
