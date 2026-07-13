@@ -14,7 +14,7 @@ export const manifest = setupManifest({
   volumes: ['main'],
   images: {
     cronicle: {
-      source: { dockerBuild: { buildArgs: { CRONICLE_VERSION: '0.9.122' } } },
+      source: { dockerBuild: { buildArgs: { CRONICLE_VERSION: '0.9.123' } } },
       arch: ['x86_64', 'aarch64'],
     },
   },

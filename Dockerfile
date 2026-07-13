@@ -7,7 +7,7 @@
 # entrypoint) is adapted from soulteary/docker-cronicle (MIT); everything else is
 # stock Cronicle installed to its default /opt/cronicle layout.
 
-ARG CRONICLE_VERSION=0.9.122
+ARG CRONICLE_VERSION=0.9.123
 
 FROM node:20-bullseye AS builder
 ARG CRONICLE_VERSION
