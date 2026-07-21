@@ -1,2 +1,17 @@
 .git
+.github
 .gitmodules
+node_modules
+javascript
+startos
+*.s9pk
+*.tar
+*.tar.gz
+.DS_Store
+package.json
+package-lock.json
+tsconfig.json
+Makefile
+*.md
+icon.png
+LICENSE

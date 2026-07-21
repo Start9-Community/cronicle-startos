@@ -5,7 +5,7 @@ export const manifest = setupManifest({
   id: 'cronicle',
   title: 'Cronicle',
   license: 'MIT',
-  packageRepo: 'https://github.com/saiththerobo/cronicle-startos',
+  packageRepo: 'https://github.com/Start9-Community/cronicle-startos',
   upstreamRepo: 'https://github.com/jhuckaby/Cronicle',
   marketingUrl: 'https://cronicle.net/',
   donationUrl: null,
@@ -14,17 +14,9 @@ export const manifest = setupManifest({
   volumes: ['main'],
   images: {
     cronicle: {
-      source: { dockerTag: 'soulteary/cronicle:0.9.80' },
+      source: { dockerBuild: { buildArgs: { CRONICLE_VERSION: '0.9.124' } } },
       arch: ['x86_64', 'aarch64'],
     },
-  },
-  alerts: {
-    install: null,
-    update: null,
-    uninstall: null,
-    restore: null,
-    start: null,
-    stop: null,
   },
   dependencies: {},
 })
