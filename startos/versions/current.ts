@@ -1,7 +1,7 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.9.124:1',
+  version: '0.9.124:2',
   releaseNotes: {
     en_US: `Updated Cronicle to 0.9.124 and rebuilt the package from source.
 
