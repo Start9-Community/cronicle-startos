@@ -31,10 +31,10 @@ Cronicle is a multi-server task scheduler and runner with a web UI. It replaces 
 
 ## Image and Container Runtime
 
-| Property      | Value                      |
-| ------------- | -------------------------- |
-| Image         | Built from source (see [`Dockerfile`](Dockerfile)) |
-| Architectures | x86_64, aarch64            |
+| Property      | Value                                                                                  |
+| ------------- | -------------------------------------------------------------------------------------- |
+| Image         | Built from source (see [`Dockerfile`](Dockerfile))                                     |
+| Architectures | x86_64, aarch64                                                                        |
 | Entrypoint    | `assets/docker-entrypoint.js` (first-boot storage setup + single-node master election) |
 
 ---
@@ -43,12 +43,12 @@ Cronicle is a multi-server task scheduler and runner with a web UI. It replaces 
 
 All persistent data lives under a single `main` volume, split into four subpath mounts:
 
-| Subpath         | Mount Point              | Purpose                          |
-| --------------- | ------------------------ | -------------------------------- |
-| `main/data`     | `/opt/cronicle/data`     | Job history, user records, state |
-| `main/conf`     | `/opt/cronicle/conf`     | `config.json` and setup files    |
-| `main/logs`     | `/opt/cronicle/logs`     | Server logs                      |
-| `main/plugins`  | `/opt/cronicle/plugins`  | Custom plugins                   |
+| Subpath        | Mount Point             | Purpose                          |
+| -------------- | ----------------------- | -------------------------------- |
+| `main/data`    | `/opt/cronicle/data`    | Job history, user records, state |
+| `main/conf`    | `/opt/cronicle/conf`    | `config.json` and setup files    |
+| `main/logs`    | `/opt/cronicle/logs`    | Server logs                      |
+| `main/plugins` | `/opt/cronicle/plugins` | Custom plugins                   |
 
 ---
 
@@ -57,7 +57,7 @@ All persistent data lives under a single `main` volume, split into four subpath 
 1. **`seed-conf`** (oneshot) — copies `sample_conf/` into `main/conf` if `config.json` does not yet exist.
 2. **`install-plugin-deps`** (oneshot) — for any plugin directory under `main/plugins/` that contains a `package.json` but no `node_modules`, runs `npm install --production` inside the container. No-op on fresh installs.
 3. **`apply-smtp`** (oneshot) — writes the resolved SMTP credentials into `conf/config.json`.
-4. **`set-admin-password`** (oneshot) — when a password is *pending* (just queued by the Set Admin Password action), patches the hash into `conf/setup.json` (fresh install) and any existing `data/.../admin.json`. A no-op otherwise.
+4. **`set-admin-password`** (oneshot) — when a password is _pending_ (just queued by the Set Admin Password action), patches the hash into `conf/setup.json` (fresh install) and any existing `data/.../admin.json`. A no-op otherwise.
 5. **`clear-pending-admin-password`** (oneshot) — once the password has been applied, clears the pending trigger so it is applied exactly once and not re-applied on later restarts.
 6. **`primary`** (daemon) — starts Cronicle in foreground mode via the upstream entrypoint.
 
@@ -73,29 +73,29 @@ Cronicle's configuration is stored in `main/conf/config.json`. The file is seede
 
 Notable defaults set in `sample_conf/config.json`:
 
-| Setting                  | Value   | Reason                                              |
-| ------------------------ | ------- | --------------------------------------------------- |
-| `web_direct_connect`     | `false` | API calls use `location.host` (the proxy), not the internal IP |
-| `web_socket_use_hostnames` | `false` | Prefer IPs over hostnames for internal routing    |
+| Setting                    | Value   | Reason                                                         |
+| -------------------------- | ------- | -------------------------------------------------------------- |
+| `web_direct_connect`       | `false` | API calls use `location.host` (the proxy), not the internal IP |
+| `web_socket_use_hostnames` | `false` | Prefer IPs over hostnames for internal routing                 |
 
 ---
 
 ## Network Access and Interfaces
 
-| Interface | Port | Protocol | Purpose          |
-| --------- | ---- | -------- | ---------------- |
-| Web UI    | 3012 | HTTP     | Cronicle web UI  |
+| Interface | Port | Protocol | Purpose         |
+| --------- | ---- | -------- | --------------- |
+| Web UI    | 3012 | HTTP     | Cronicle web UI |
 
 ---
 
 ## Actions (StartOS UI)
 
-| Action                  | Description                                      |
-| ----------------------- | ------------------------------------------------ |
-| Set Admin Password      | Generate a random admin password (first-set via the install task, and rotation later); stores it, returns it, and restarts to apply |
-| Configure SMTP          | Set up email sending (disabled / StartOS system SMTP / custom) |
-| Deploy Node.js Plugin   | Write a Node.js plugin script to `main/plugins/`. Optionally provide a `package.json`; dependencies are installed automatically via the `install-plugin-deps` oneshot on next restart. Returns the script path to register in Cronicle Admin → Plugins. |
-| Remove Plugin           | Delete a previously deployed plugin script or directory from `main/plugins/`. Always visible; shows a dynamic list of deployed plugins. |
+| Action                | Description                                                                                                                                                                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Set Admin Password    | Generate a random admin password (first-set via the install task, and rotation later); stores it, returns it, and restarts to apply                                                                                                                     |
+| Configure SMTP        | Set up email sending (disabled / StartOS system SMTP / custom)                                                                                                                                                                                          |
+| Deploy Node.js Plugin | Write a Node.js plugin script to `main/plugins/`. Optionally provide a `package.json`; dependencies are installed automatically via the `install-plugin-deps` oneshot on next restart. Returns the script path to register in Cronicle Admin → Plugins. |
+| Remove Plugin         | Delete a previously deployed plugin script or directory from `main/plugins/`. Always visible; shows a dynamic list of deployed plugins.                                                                                                                 |
 
 ### Plugin Notes
 
@@ -115,9 +115,9 @@ Notable defaults set in `sample_conf/config.json`:
 
 ## Health Checks
 
-| Check         | Method                   | Messages                                                                      |
-| ------------- | ------------------------ | ----------------------------------------------------------------------------- |
-| Web Interface | Port listening (3012)    | Success: "The web interface is ready" / Error: "The web interface is not ready" |
+| Check         | Method                | Messages                                                                        |
+| ------------- | --------------------- | ------------------------------------------------------------------------------- |
+| Web Interface | Port listening (3012) | Success: "The web interface is ready" / Error: "The web interface is not ready" |
 
 ---
 
@@ -151,7 +151,7 @@ The Cronicle application, its configuration format, plugin system, job scheduler
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions and development workflow.
+Build and development workflow follow the StartOS packaging guide: <https://docs.start9.com/packaging>. Keep `README.md`, `instructions.md`, and `AGENTS.md` in sync with any change to user-visible behavior or package structure.
 
 ---
 
@@ -162,19 +162,19 @@ package_id: cronicle
 image: built from source (Dockerfile, official jhuckaby/Cronicle release)
 architectures: [x86_64, aarch64]
 volumes:
-  main/data:    /opt/cronicle/data
-  main/conf:    /opt/cronicle/conf
-  main/logs:    /opt/cronicle/logs
+  main/data: /opt/cronicle/data
+  main/conf: /opt/cronicle/conf
+  main/logs: /opt/cronicle/logs
   main/plugins: /opt/cronicle/plugins
 ports:
   ui: 3012
 dependencies: none
 default_credentials: admin / password set via "Set Admin Password" action (prompted by a critical task on install)
 actions:
-  - set-admin-password      # generate+queue+return admin password (applied once on restart); first-set via install task, also rotation
+  - set-admin-password # generate+queue+return admin password (applied once on restart); first-set via install task, also rotation
   - manage-smtp
-  - deploy-plugin           # write a Node.js plugin script to main/plugins/
-  - remove-plugin           # delete a deployed plugin from main/plugins/
+  - deploy-plugin # write a Node.js plugin script to main/plugins/
+  - remove-plugin # delete a deployed plugin from main/plugins/
 runtime_patches:
   - file: /opt/cronicle/htdocs/js/_combo.js
     reason: rewrite live-log WebSocket/API URLs to route through StartOS proxy
