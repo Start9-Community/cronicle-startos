@@ -28,7 +28,7 @@ image, which stalled at 0.9.80. "Upstream" is the Cronicle software itself.
    on-disk data is read in place; see the CHANGELOG note below).
 3. **Re-verify the two vendored Docker patches still apply** to the new source:
    - `assets/patch-engine.js` anchors on the string `// determine master server
-     eligibility` in `lib/engine.js` and injects a single-node `goMaster()`. The
+eligibility` in `lib/engine.js` and injects a single-node `goMaster()`. The
      build **fails loudly** if that anchor moves — update the anchor if so.
    - `assets/docker-entrypoint.js` runs `bin/control.sh setup` and seeds
      `global/servers/0` on first boot. Confirm Cronicle still exposes
@@ -37,9 +37,10 @@ image, which stalled at 0.9.80. "Upstream" is the Cronicle software itself.
    (Both live in `assets/` — the packaging-guide home for build scripts and
    entrypoints that the `Dockerfile` COPYs; don't scatter them at the repo root
    or in ad-hoc dirs.)
+
 4. **Re-verify the `_combo.js` runtime patch** in `startos/main.ts`. It matches
    the markers `var url = app.proto + job.hostname` and `var remote_api_url =
-   app.proto + job.hostname` in `htdocs/js/pages/JobDetails.class.js` (bundled
+app.proto + job.hostname` in `htdocs/js/pages/JobDetails.class.js` (bundled
    into `htdocs/js/_combo.js` by `bin/build.js dist`). It throws on a missing
    marker — update the regexes in `main.ts` if the upstream UI changed.
 5. **Check the CHANGELOG for breaking changes / new config gates.** Cronicle

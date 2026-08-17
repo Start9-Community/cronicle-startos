@@ -6,14 +6,12 @@ Develop it inside a StartOS packaging workspace created by `start-cli s9pk init-
 which provides the packaging guide and agent context one level up. If you're reading this in a
 bare clone with no workspace, the full guide is at <https://docs.start9.com/packaging>.
 
-Work this package's `TODO.md` from top to bottom. Keep `README.md` (architecture, for developers and LLMs) and `instructions.md` (end-user docs) in sync with your changes.
+Work this package's `TODO.md` from top to bottom. Keep `README.md` (technical reference for an AI support or administering agent) and `instructions.md` (end-user docs) in sync with your changes.
 
 ## This repo
 
-- **Package id is `cronicle`.** Single UI service (a `ui` interface on port 3012); no dependents and no dependencies.
-- **Built from source** from `jhuckaby/Cronicle` via the root `Dockerfile` (`dockerBuild`, `CRONICLE_VERSION` build arg) — it no longer uses the abandoned third-party `soulteary/cronicle` image. The vendored Docker helper scripts live in **`assets/`** (the packaging guide's home for build/entrypoint scripts) and are `COPY`d by the `Dockerfile`: `assets/docker-entrypoint.js` (first-boot storage init + single-node server self-registration, the image `CMD`) and `assets/patch-engine.js` (build-time patch forcing single-node `goMaster` in `lib/engine.js`). **Keep new build/entrypoint scripts in `assets/`, not at the repo root or in ad-hoc dirs.**
-- **`main.ts` runtime-patches the built `_combo.js`** (and deletes `_combo.js.gz`) so the browser builds live-log WebSocket / API URLs from `location.origin` instead of Cronicle's internal container hostname, which is unreachable through the StartOS reverse proxy. The patch asserts on marker strings and throws if they moved — expect to update the regexes in `main.ts` when bumping the upstream version.
-
-## Inspecting a running install
-
-To run a command inside the service's container (read its generated config, grep app logs), use `start-cli package attach cronicle -n cronicle -- <cmd>`. Select the subcontainer by **name** with `-n` (the name passed to `SubContainer.of` in `main.ts` — here `cronicle-sub`) or by image with `-i`. Note: `-s/--subcontainer` matches the internal **Guid**, not the name, so passing a name to `-s` fails with "no matching subcontainers".
+- **Hash passwords with Cronicle's own `bcrypt-node`, inside the container.** `pixl-server-user` stores `bcrypt.hashSync(plaintext + user.salt)` — the per-user salt is part of the input, so a hash produced any other way is rejected at login rather than failing loudly.
+- **The admin record's path is MD5-sharded and hardcoded.** `pixl-server-storage`'s filesystem engine maps the key `users/admin` to `data/users/34/68/bc/3468bc0c4e5f6aa06c7aee62212ac18f.json`. Both the fresh-install path (patch `conf/setup.json` before setup runs) and the existing-install path (patch the live record) are needed — neither covers the other.
+- **`clear-pending-admin-password` is gated on the apply oneshot** so a failed apply retries on the next start instead of dropping the password silently.
+- **Plugin dependencies install at start-up, not at deploy time.** The `install-plugin-deps` oneshot is what makes a deployed plugin survive an image update; it skips any plugin that already has its modules.
+- **`conf/config.json` is seeded from the image's sample only when absent, then patched in place for SMTP alone.** Don't regenerate it — everything else in that file is the user's.

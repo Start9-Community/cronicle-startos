@@ -4,10 +4,15 @@
 
 # Cronicle on StartOS
 
-> **Upstream repo:** <https://github.com/jhuckaby/Cronicle>  
-> **Built from source** — see [`Dockerfile`](Dockerfile)
+> Everything not listed in this document should behave the same as upstream
+> Cronicle. If a feature, setting, or behavior is not mentioned here, the
+> upstream documentation is accurate and fully applicable — see the
+> Documentation section of `instructions.md` for links.
 
-Cronicle is a multi-server task scheduler and runner with a web UI. It replaces cron with a visual interface for managing scheduled jobs, viewing live logs, and tracking job history.
+[Cronicle](https://github.com/jhuckaby/Cronicle) is a multi-server task scheduler with a web interface — cron with a UI, live logs, and plugins. This package runs it as a single master, sets its admin password from StartOS, wires its email through the server's SMTP, and patches its front end so live logs work behind a reverse proxy.
+
+- **Upstream repo:** <https://github.com/jhuckaby/Cronicle>
+- **Wrapper repo:** <https://github.com/Start9-Community/cronicle-startos>
 
 ---
 
@@ -15,143 +20,188 @@ Cronicle is a multi-server task scheduler and runner with a web UI. It replaces 
 
 - [Image and Container Runtime](#image-and-container-runtime)
 - [Volume and Data Layout](#volume-and-data-layout)
-- [Installation and First-Run Flow](#installation-and-first-run-flow)
-- [Configuration Management](#configuration-management)
-- [Network Access and Interfaces](#network-access-and-interfaces)
-- [Actions (StartOS UI)](#actions-startos-ui)
-- [Backups and Restore](#backups-and-restore)
-- [Health Checks](#health-checks)
+- [File Models](#file-models)
 - [Dependencies](#dependencies)
+- [Network Access and Interfaces](#network-access-and-interfaces)
+- [Installation and First-Run Flow](#installation-and-first-run-flow)
+- [Actions](#actions)
+- [Tasks](#tasks)
+- [Health Checks](#health-checks)
+- [Backups and Restore](#backups-and-restore)
 - [Limitations and Differences](#limitations-and-differences)
-- [What Is Unchanged from Upstream](#what-is-unchanged-from-upstream)
-- [Contributing](#contributing)
 - [Quick Reference for AI Consumers](#quick-reference-for-ai-consumers)
 
 ---
 
 ## Image and Container Runtime
 
-| Property      | Value                                                                                  |
-| ------------- | -------------------------------------------------------------------------------------- |
-| Image         | Built from source (see [`Dockerfile`](Dockerfile))                                     |
-| Architectures | x86_64, aarch64                                                                        |
-| Entrypoint    | `assets/docker-entrypoint.js` (first-boot storage setup + single-node master election) |
+One image, built here from a pinned upstream version.
 
----
+| Property      | Value                                      |
+| ------------- | ------------------------------------------ |
+| Image         | Built from this repo's `Dockerfile`        |
+| Architectures | x86_64, aarch64                            |
+| Entrypoint    | The image's own, via `sdk.useEntrypoint()` |
+
+| Subcontainer   | Purpose                                               |
+| -------------- | ----------------------------------------------------- |
+| `cronicle-sub` | Every oneshot and the daemon — the one to `attach` to |
+
+**The package patches Cronicle's front-end bundle at every start**, before the daemon runs. Cronicle builds its live-log WebSocket and API URLs from the container's own internal hostname, which is unreachable through a reverse proxy — so live logs simply never load. The patch rewrites those two URL constructions to use the browser's own origin when the job ran on this server, leaving external workers untouched.
+
+It is done by string replacement against markers in the bundle, and **it fails loudly**: if a marker is missing the service refuses to start rather than serving a subtly broken UI. That is deliberate — a silent failure here looks like "live logs are broken" with nothing to point at. An upstream version bump is the thing that breaks it.
+
+The pre-compressed copy of the bundle is deleted in the same step, so the web server cannot serve the stale original.
+
+The daemon runs in foreground mode; everything else about the image is upstream's.
 
 ## Volume and Data Layout
 
-All persistent data lives under a single `main` volume, split into four subpath mounts:
+One volume, mounted four times — one subpath per Cronicle directory.
 
-| Subpath        | Mount Point             | Purpose                          |
-| -------------- | ----------------------- | -------------------------------- |
-| `main/data`    | `/opt/cronicle/data`    | Job history, user records, state |
-| `main/conf`    | `/opt/cronicle/conf`    | `config.json` and setup files    |
-| `main/logs`    | `/opt/cronicle/logs`    | Server logs                      |
-| `main/plugins` | `/opt/cronicle/plugins` | Custom plugins                   |
+| Volume             | Mount Point             | Purpose                         |
+| ------------------ | ----------------------- | ------------------------------- |
+| `main` / `data`    | `/opt/cronicle/data`    | Jobs, schedules, users, history |
+| `main` / `conf`    | `/opt/cronicle/conf`    | Cronicle's configuration        |
+| `main` / `logs`    | `/opt/cronicle/logs`    | Its logs                        |
+| `main` / `plugins` | `/opt/cronicle/plugins` | Deployed plugins                |
 
----
+Splitting one volume across four mounts keeps each of Cronicle's directories where the application expects it while leaving the rest of its installation in the image — so an image update replaces the code and keeps the state.
 
-## Installation and First-Run Flow
+The package's own `store.json` sits at the volume root, outside all four.
 
-1. **`seed-conf`** (oneshot) — copies `sample_conf/` into `main/conf` if `config.json` does not yet exist.
-2. **`install-plugin-deps`** (oneshot) — for any plugin directory under `main/plugins/` that contains a `package.json` but no `node_modules`, runs `npm install --production` inside the container. No-op on fresh installs.
-3. **`apply-smtp`** (oneshot) — writes the resolved SMTP credentials into `conf/config.json`.
-4. **`set-admin-password`** (oneshot) — when a password is _pending_ (just queued by the Set Admin Password action), patches the hash into `conf/setup.json` (fresh install) and any existing `data/.../admin.json`. A no-op otherwise.
-5. **`clear-pending-admin-password`** (oneshot) — once the password has been applied, clears the pending trigger so it is applied exactly once and not re-applied on later restarts.
-6. **`primary`** (daemon) — starts Cronicle in foreground mode via the upstream entrypoint.
+## File Models
 
-On a fresh install Cronicle's own setup routine (`control.sh setup`) runs automatically on first start and seeds the database from `conf/setup.json`.
+One model, and two of its three fields exist to solve the same problem in different directions.
 
-The admin username is `admin`. No password is generated at install. Instead, a `watchCredentials` init step surfaces a **critical task** (gated on the persistent `adminPasswordSet` flag) prompting the user to run the **Set Admin Password** action before signing in. That action generates a random password, queues it as a one-time `pendingAdminPassword` trigger, restarts the service to apply it once, and returns it to the user; `main` then clears the trigger. After it has been applied, Cronicle owns the credential in its own data volume, so a password later changed inside Cronicle (Admin → Users) is no longer overwritten on restart. Re-running the action rotates the password.
+| File         | Format | Modelled                | Written by                |
+| ------------ | ------ | ----------------------- | ------------------------- |
+| `store.json` | JSON   | Yes — `FileHelper.json` | Init, actions, and `main` |
 
----
+- **`adminPasswordSet`** — a persistent guard: has a password ever been set? It drives the onboarding task and is **never cleared**.
+- **`pendingAdminPassword`** — a one-time trigger: a password waiting to be applied. Set by the action, consumed by start-up, then cleared.
+- **`smtp`** — the email configuration selection.
 
-## Configuration Management
+**The two password fields are separate on purpose, and the reason is a real bug that was fixed.** The pending password is read **non-reactively**, so clearing it after it is applied does not restart the service. Reading it reactively is what used to re-apply the stored password on every restart — silently reverting any password the user had changed inside Cronicle itself.
 
-Cronicle's configuration is stored in `main/conf/config.json`. The file is seeded from `sample_conf/config.json` on first run and persists across restarts.
+That is also why the guard is a separate field: clearing the trigger must not drop the record that a password was ever set, or the onboarding task would come back.
 
-Notable defaults set in `sample_conf/config.json`:
+The SMTP selection **is** read reactively, so changing it restarts the service and re-applies it.
 
-| Setting                    | Value   | Reason                                                         |
-| -------------------------- | ------- | -------------------------------------------------------------- |
-| `web_direct_connect`       | `false` | API calls use `location.host` (the proxy), not the internal IP |
-| `web_socket_use_hostnames` | `false` | Prefer IPs over hostnames for internal routing                 |
-
----
-
-## Network Access and Interfaces
-
-| Interface | Port | Protocol | Purpose         |
-| --------- | ---- | -------- | --------------- |
-| Web UI    | 3012 | HTTP     | Cronicle web UI |
-
----
-
-## Actions (StartOS UI)
-
-| Action                | Description                                                                                                                                                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Set Admin Password    | Generate a random admin password (first-set via the install task, and rotation later); stores it, returns it, and restarts to apply                                                                                                                     |
-| Configure SMTP        | Set up email sending (disabled / StartOS system SMTP / custom)                                                                                                                                                                                          |
-| Deploy Node.js Plugin | Write a Node.js plugin script to `main/plugins/`. Optionally provide a `package.json`; dependencies are installed automatically via the `install-plugin-deps` oneshot on next restart. Returns the script path to register in Cronicle Admin → Plugins. |
-| Remove Plugin         | Delete a previously deployed plugin script or directory from `main/plugins/`. Always visible; shows a dynamic list of deployed plugins.                                                                                                                 |
-
-### Plugin Notes
-
-- **No npm by default** — the `install-plugin-deps` oneshot runs `npm install` inside the container, which requires outbound clearnet access. Without a configured outbound gateway (e.g. StartTunnel), npm cannot reach `registry.npmjs.org` and the install will fail. Node.js built-in modules (`https`, `http`, `fs`, `child_process`, `crypto`, etc.) work without any npm install.
-- **Registration is manual** — deploying a plugin writes the script to disk. You still need to register it in Cronicle under Admin → Plugins and configure its parameter fields there.
-- **Single-file vs directory plugins** — if no `package.json` is provided the script is saved as `plugins/<name>.js`; if `package.json` is provided it is saved as `plugins/<name>/index.js` alongside the `package.json`.
-
----
-
-## Backups and Restore
-
-**Included in backup:** the full `main` volume (`data`, `conf`, `logs`, `plugins`).
-
-**Restore behavior:** the volume is restored before the service starts. Both Cronicle's own `admin.json` (in `data`) and the password stored in `main/store.json` come back with the volume, and `main` re-applies the stored password on start — so logins remain valid after a restore.
-
----
-
-## Health Checks
-
-| Check         | Method                | Messages                                                                        |
-| ------------- | --------------------- | ------------------------------------------------------------------------------- |
-| Web Interface | Port listening (3012) | Success: "The web interface is ready" / Error: "The web interface is not ready" |
-
----
+**Cronicle's own `config.json` is not modelled.** It is seeded from the image's sample on first start, and thereafter patched in place by a start-up script for the SMTP fields only. Everything else in it is the user's, and survives.
 
 ## Dependencies
 
 None.
 
----
+## Network Access and Interfaces
+
+One interface.
+
+| Interface | Id   | Type | Port | Description                   |
+| --------- | ---- | ---- | ---- | ----------------------------- |
+| Web UI    | `ui` | ui   | 3012 | The web interface of Cronicle |
+
+Bound on the `ui-multi` MultiHost over HTTP and not masked.
+
+**Cronicle is designed as a multi-server system, and this package is the master only.** External worker servers connect _to_ it, and the front-end patch above deliberately preserves direct connections for jobs that ran on a worker — only jobs on this server are routed through the proxy.
+
+## Installation and First-Run Flow
+
+Start-up is a chain of four steps before the daemon, and the order is load-bearing:
+
+1. **Seed the configuration** — copy the image's sample config in, but only if none exists.
+2. **Install plugin dependencies** — for each deployed plugin that has a manifest and no installed modules, install them. This is what makes a plugin survive an image update.
+3. **Apply SMTP** — patch the email fields into Cronicle's config.
+4. **Apply the admin password**, if one is pending.
+
+Then the daemon starts, and a fifth step clears the pending password — gated on the apply having succeeded, so a failed apply retries on the next start rather than being silently dropped.
+
+**The password is applied two ways because there are two cases.** On a fresh install it patches Cronicle's setup file before first-run setup consumes it; on an existing install it patches the live admin record directly. The hash is produced by **Cronicle's own bcrypt module**, inside the container, so it is a hash Cronicle will accept rather than one that merely looks right.
+
+Install raises a critical task to set that password; nothing is reachable until it is done.
+
+## Actions
+
+Four actions.
+
+### Set Admin Password
+
+Generates a new admin password and applies it. Run it when its task appears, or to recover from a lost password.
+
+- **What it changes:** the pending password in the store, which start-up applies to Cronicle's user record.
+- **Cost:** the service restarts — the password is applied by a start-up step, not live.
+- **Repeat safety:** each run generates a **new** password and invalidates the previous one.
+- **Outputs:** the username and password, shown once.
+- **It overrides a password changed inside Cronicle.** If a user changed their password in the app and then runs this, the app's password is replaced.
+
+### Configure SMTP
+
+Points Cronicle's email at the server's system SMTP or at a custom server. Run it to enable job notifications.
+
+- **What it changes:** the SMTP selection in the store, and through it Cronicle's config on the next start.
+- **Cost:** the service restarts.
+- **Repeat safety:** idempotent.
+- **Using the system SMTP** takes the server's configured credentials, optionally with a different from-address.
+- **With nothing configured**, Cronicle's email fields are blanked rather than left stale, so notifications fail visibly instead of going somewhere unexpected.
+
+### Deploy Node.js Plugin
+
+Adds a plugin by submitting its script, and optionally a manifest declaring its dependencies.
+
+- **What it changes:** writes the plugin into the plugins directory on the volume.
+- **Cost:** dependencies are installed on the **next start**, by the start-up step — not when the action runs.
+- **Repeat safety:** re-deploying the same plugin id replaces it.
+- **What happens next:** the plugin still has to be registered inside Cronicle's own UI before a job can use it. Deploying puts the code in place; it does not create the plugin entry.
+
+### Remove Plugin
+
+Deletes a deployed plugin.
+
+- **What it changes:** removes the plugin's directory from the volume.
+- **Repeat safety:** idempotent.
+- **It does not clean up inside Cronicle.** Jobs still referencing the plugin will fail rather than disappear — remove them in the UI too.
+
+## Tasks
+
+One, and it is reactive.
+
+| Task               | Severity   | Raised when                   | Cleared when            |
+| ------------------ | ---------- | ----------------------------- | ----------------------- |
+| Set Admin Password | `critical` | No password has ever been set | Set Admin Password runs |
+
+It is keyed on the persistent guard, not on the pending trigger — so it appears once, on a fresh install, and does **not** come back every time a password is applied and cleared.
+
+`critical` blocks the service from starting and suspends the ordinary controls.
+
+## Health Checks
+
+One check, on the only daemon.
+
+| Check     | Displayed as    | Method                 |
+| --------- | --------------- | ---------------------- |
+| `primary` | "Web Interface" | Port 3012 is listening |
+
+It reports that the interface is serving. Whether scheduled jobs are succeeding is Cronicle's own business, visible in its UI and its email notifications — nothing here surfaces a failing job.
+
+A service that will not start at all, with no failing check, is most likely the front-end patch refusing to apply after an image change; the service logs name the missing marker.
+
+## Backups and Restore
+
+The `main` volume is copied wholesale — `sdk.Backups.ofVolumes('main')`. That is all four subpaths plus the store: every job, schedule, user, log, and plugin, along with the admin-password guard and the SMTP selection.
+
+A restored instance comes back complete and raises no task. Plugin dependencies are re-installed on the first start if the modules did not travel, which is the same step that runs after an image update.
+
+The one thing to know is that logs and job history are in the backup too, so its size tracks how much history Cronicle has accumulated rather than how much is configured.
 
 ## Limitations and Differences
 
-1. **Live log WebSocket** — Cronicle normally connects the browser directly to the internal container IP for live job output. At startup, `_combo.js` is patched so that when a job runs on the master (the only server in a typical StartOS install), the WebSocket and log-download URLs are rewritten to use `location.origin`, routing through the StartOS proxy. Jobs running on external workers keep the original direct-connect behavior.
-
-2. **Single-master only (typical)** — Cronicle supports multi-server clustering. External workers reachable by public hostname/IP work normally. Workers only reachable by a private/container IP will not be accessible from the browser.
-
-3. **Email requires SMTP configuration** — Cronicle defaults to `localhost:25` which has no mail daemon. Use the "Configure SMTP" action to point it at the StartOS system SMTP (if configured in StartOS settings) or a custom provider. Without this, job notification emails are silently dropped.
-
-4. **No HTTPS on the container** — Cronicle's internal server runs HTTP on port 3012. TLS termination is handled by the StartOS proxy.
-
----
-
-## What Is Unchanged from Upstream
-
-The Cronicle application, its configuration format, plugin system, job scheduler, and all API endpoints are unmodified. The only changes are:
-
-- `_combo.js` patched at service start to fix live-log URLs behind a reverse proxy
-- `conf/setup.json` / `data/.../admin.json` patched once when a password is pending (just queued by the Set Admin Password action), then the trigger is cleared; a no-op on later restarts
-- `conf/config.json` patched at service start to apply SMTP credentials
-
----
-
-## Contributing
-
-Build and development workflow follow the StartOS packaging guide: <https://docs.start9.com/packaging>. Keep `README.md`, `instructions.md`, and `AGENTS.md` in sync with any change to user-visible behavior or package structure.
+1. **The front-end bundle is patched at every start**, and the service refuses to start if the patch no longer applies. An upstream version bump is the thing that triggers this.
+2. **This is a single master.** Nothing here configures worker servers, though the patch deliberately leaves their direct connections intact.
+3. **The admin password is applied at start-up, not live**, so setting it restarts the service — and overrides a password changed inside Cronicle.
+4. **Plugin dependencies install on the next start**, not when a plugin is deployed.
+5. **Deploying a plugin does not register it** in Cronicle; that is still done in the UI.
+6. **Only the SMTP fields of Cronicle's config are managed.** Everything else in it is yours, and is not reset.
 
 ---
 
@@ -159,23 +209,32 @@ Build and development workflow follow the StartOS packaging guide: <https://docs
 
 ```yaml
 package_id: cronicle
-image: built from source (Dockerfile, official jhuckaby/Cronicle release)
-architectures: [x86_64, aarch64]
+image: built from ./Dockerfile # upstream version pinned as a build arg
+architectures:
+  - x86_64
+  - aarch64
+subcontainers:
+  - cronicle-sub # every oneshot and the daemon
 volumes:
-  main/data: /opt/cronicle/data
-  main/conf: /opt/cronicle/conf
-  main/logs: /opt/cronicle/logs
-  main/plugins: /opt/cronicle/plugins
-ports:
-  ui: 3012
-dependencies: none
-default_credentials: admin / password set via "Set Admin Password" action (prompted by a critical task on install)
+  main:
+    data: /opt/cronicle/data
+    conf: /opt/cronicle/conf
+    logs: /opt/cronicle/logs
+    plugins: /opt/cronicle/plugins
+file_models:
+  - store.json # conf/config.json is seeded and patched, not modelled
+startos_managed_env_vars:
+  - CRONICLE_foreground
+dependencies: []
+interfaces:
+  ui: { type: ui, port: 3012 }
 actions:
-  - set-admin-password # generate+queue+return admin password (applied once on restart); first-set via install task, also rotation
+  - set-admin-password
   - manage-smtp
-  - deploy-plugin # write a Node.js plugin script to main/plugins/
-  - remove-plugin # delete a deployed plugin from main/plugins/
-runtime_patches:
-  - file: /opt/cronicle/htdocs/js/_combo.js
-    reason: rewrite live-log WebSocket/API URLs to route through StartOS proxy
+  - deploy-plugin
+  - remove-plugin
+tasks:
+  - { action: set-admin-password, severity: critical }
+health_checks:
+  - primary # displayed "Web Interface"
 ```
