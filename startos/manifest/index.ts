@@ -9,7 +9,6 @@ export const manifest = setupManifest({
   upstreamRepo: 'https://github.com/jhuckaby/Cronicle',
   marketingUrl: 'https://cronicle.net/',
   donationUrl: null,
-  docsUrls: ['https://github.com/jhuckaby/Cronicle/blob/master/docs/WebUI.md'],
   description: { short, long },
   volumes: ['main'],
   images: {
