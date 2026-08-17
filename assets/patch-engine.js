@@ -35,4 +35,6 @@ const inject =
 
 src = src.replace(anchor, inject + anchor)
 fs.writeFileSync(file, src)
-console.log('patch-engine: injected single-node master election into lib/engine.js')
+console.log(
+  'patch-engine: injected single-node master election into lib/engine.js',
+)

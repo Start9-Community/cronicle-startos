@@ -43,10 +43,11 @@ if (
     ).toLowerCase()
 
     const [ip] = Object.keys(networkInterfaces())
-      .filter((eth) =>
-        networkInterfaces()[eth].filter(
-          (addr) => addr.internal === false && addr.family === 'IPv4',
-        ).length,
+      .filter(
+        (eth) =>
+          networkInterfaces()[eth].filter(
+            (addr) => addr.internal === false && addr.family === 'IPv4',
+          ).length,
       )
       .map((eth) => networkInterfaces()[eth])[0]
 
