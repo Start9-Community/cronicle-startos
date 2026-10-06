@@ -134,6 +134,7 @@ Generates a new admin password and applies it. Run it when its task appears, or 
 - **Repeat safety:** each run generates a **new** password and invalidates the previous one.
 - **Outputs:** the username and password, shown once.
 - **It overrides a password changed inside Cronicle.** If a user changed their password in the app and then runs this, the app's password is replaced.
+- **Confirmation:** once a password has been set (the `adminPasswordSet` guard), the action warns before running; the first run, from the install task, does not.
 
 ### Configure SMTP
 
@@ -156,9 +157,9 @@ Adds a plugin by submitting its script, and optionally a manifest declaring its 
 
 ### Remove Plugin
 
-Deletes a deployed plugin.
+Deletes a deployed plugin, chosen from a list of the plugins on the volume, each shown with its script path. Nothing is preselected.
 
-- **What it changes:** removes the plugin's directory from the volume.
+- **What it changes:** removes the plugin's script file or directory from the volume.
 - **Repeat safety:** idempotent.
 - **It does not clean up inside Cronicle.** Jobs still referencing the plugin will fail rather than disappear — remove them in the UI too.
 

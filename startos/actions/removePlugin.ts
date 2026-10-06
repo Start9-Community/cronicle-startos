@@ -22,9 +22,9 @@ const inputSpec = InputSpec.of({
     return {
       name: i18n('Plugin to Remove'),
       description: i18n(
-        'Select the custom plugin script to permanently delete from the filesystem.',
+        'Each entry shows its script path, which matches the Script value of the plugin registered in Cronicle under Admin → Plugins.',
       ),
-      default: Object.keys(values)[0],
+      default: null,
       values,
     }
   }),
@@ -54,13 +54,16 @@ export const removePlugin = sdk.Action.withInput(
     const { plugin } = input
 
     if (plugin === '_none') {
-      throw new Error('No custom plugins have been deployed yet.')
+      throw new Error(i18n('No custom plugins have been deployed yet.'))
     }
 
     const plugins = await listCustomPlugins()
     if (!plugins.find((p) => p.id === plugin)) {
       throw new Error(
-        `Plugin "${plugin}" was not found. It may have already been removed.`,
+        i18n(
+          'Plugin "${plugin}" was not found. It may have already been removed.',
+          { plugin },
+        ),
       )
     }
 
@@ -74,7 +77,10 @@ export const removePlugin = sdk.Action.withInput(
     return {
       version: '1' as const,
       title: i18n('Plugin Removed'),
-      message: `Plugin "${plugin}" has been deleted from disk. If a Cronicle plugin entry still points to this script, remove it from Admin → Plugins to avoid errors.`,
+      message: i18n(
+        'Plugin "${plugin}" has been deleted from disk. If a Cronicle plugin entry still points to this script, remove it from Admin → Plugins to avoid errors.',
+        { plugin },
+      ),
       result: null,
     }
   },
