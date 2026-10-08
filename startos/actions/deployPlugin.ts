@@ -48,8 +48,9 @@ const inputSpec = InputSpec.of({
     patterns: [
       {
         regex: '^[a-z0-9][a-z0-9-]*$',
-        description:
+        description: i18n(
           'Lowercase letters, numbers, and hyphens. Must start with a letter or number.',
+        ),
       },
     ],
     maxLength: 64,
@@ -133,11 +134,16 @@ export const deployPlugin = sdk.Action.withInput(
       version: '1' as const,
       title: i18n('Plugin Deployed'),
       message:
-        `Plugin "${name}" has been written to disk` +
         (packageJson
-          ? '. Restart Cronicle to install npm dependencies.'
-          : '.') +
-        '\n\nTo activate it:\n1. Open Cronicle → Admin → Plugins\n2. Click "Add Plugin"\n3. Set the Script path to the value below\n4. Add any custom parameters and save',
+          ? i18n(
+              'Plugin "${name}" has been written to disk. Restart Cronicle to install npm dependencies.',
+              { name },
+            )
+          : i18n('Plugin "${name}" has been written to disk.', { name })) +
+        '\n\n' +
+        i18n(
+          'To activate it:\n1. Open Cronicle → Admin → Plugins\n2. Click "Add Plugin"\n3. Set the Script path to the value below\n4. Add any custom parameters and save',
+        ),
       result: {
         type: 'single' as const,
         name: i18n('Script Path'),

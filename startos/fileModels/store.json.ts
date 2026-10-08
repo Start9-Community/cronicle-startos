@@ -1,7 +1,7 @@
 import { FileHelper, smtpShape, z } from '@start9labs/start-sdk'
 import { sdk } from '../sdk'
 
-const shape = z.object({
+const shape = z.looseObject({
   // Persistent guard: has an admin password ever been set? Drives the onboarding
   // task in watchCredentials. Set once by the Set Admin Password action; never cleared.
   adminPasswordSet: z.boolean().catch(false),

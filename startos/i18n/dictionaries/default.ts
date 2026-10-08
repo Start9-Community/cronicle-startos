@@ -21,6 +21,7 @@ const dict = {
   'Use these credentials to sign in to Cronicle.': 10,
   Username: 11,
   Password: 12,
+  'This replaces the current admin password, including one changed inside Cronicle, and restarts Cronicle. The current password stops working.': 33,
 
   // actions/manageSmtp.ts
   'Configure SMTP': 13,
@@ -38,15 +39,22 @@ const dict = {
   'Plugin Deployed': 23,
   'Script Path': 24,
   'Enter this as the Script value when registering the plugin in Cronicle': 25,
+  'Lowercase letters, numbers, and hyphens. Must start with a letter or number.': 34,
+  'Plugin "${name}" has been written to disk. Restart Cronicle to install npm dependencies.': 35,
+  'Plugin "${name}" has been written to disk.': 36,
+  'To activate it:\n1. Open Cronicle → Admin → Plugins\n2. Click "Add Plugin"\n3. Set the Script path to the value below\n4. Add any custom parameters and save': 37,
 
   // actions/removePlugin.ts
   'Plugin to Remove': 26,
-  'Select the custom plugin script to permanently delete from the filesystem.': 27,
+  'Each entry shows its script path, which matches the Script value of the plugin registered in Cronicle under Admin → Plugins.': 27,
   'No plugins deployed yet': 28,
   'Remove Plugin': 29,
   'Permanently delete a deployed plugin script from disk. Remove it from Cronicle Admin → Plugins first to avoid broken job references.': 30,
   'This permanently deletes the plugin script from disk. Jobs configured to use it will fail until the plugin is redeployed or reassigned.': 31,
   'Plugin Removed': 32,
+  'No custom plugins have been deployed yet.': 38,
+  'Plugin "${plugin}" was not found. It may have already been removed.': 39,
+  'Plugin "${plugin}" has been deleted from disk. If a Cronicle plugin entry still points to this script, remove it from Admin → Plugins to avoid errors.': 40,
 } as const
 
 /**

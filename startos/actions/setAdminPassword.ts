@@ -6,12 +6,16 @@ import { sdk } from '../sdk'
 export const setAdminPassword = sdk.Action.withoutInput(
   'set-admin-password',
 
-  async () => ({
+  async ({ effects }) => ({
     name: i18n('Set Admin Password'),
     description: i18n(
       'Generate a new random password for the Cronicle admin account, replacing any existing one. The service restarts to apply it.',
     ),
-    warning: null,
+    warning: (await storeJson.read((s) => s.adminPasswordSet).const(effects))
+      ? i18n(
+          'This replaces the current admin password, including one changed inside Cronicle, and restarts Cronicle. The current password stops working.',
+        )
+      : null,
     allowedStatuses: 'any',
     group: null,
     visibility: 'enabled',

@@ -18,16 +18,23 @@ Freshly scaffolded? Work the
 guide page, not a file in this repo — read it, don't copy it in.
 
 Keep `README.md` (technical reference for an AI support or administering agent) and
-`instructions.md` (end-user docs) in sync with your changes.
+`instructions.md` (end-user docs) in sync with your changes. This file restates neither:
+whoever changes the package has both, so it carries only what they don't — repo mechanics,
+a change that looks right and is not, where the next thing gets added, a naming trap, a
+build or test invocation particular to this repo.
 
-**Bugs and feature requests are GitHub issues on this repo** — file them as you find them.
+**Fix a defect you spot rather than reporting it** — you have the package open and the
+context to be sure. File **a GitHub issue on this repo** only when the call isn't yours to
+make: you can't pin the cause down, two defensible fixes exist, or it's too large to ride on
+the work in hand. An open issue is a report, not a queue — implement one when you're asked
+to or when it's labelled `Approved`, then close it with `Closes #<n>`.
+
 Don't record work in the repo instead: no `TODO.md`, no `NOTES.md`, no `PLAN.md`. What you
 verified, tried, and decided belongs in the commit message and the PR body.
 
 ## This repo
 
-- **Hash passwords with Cronicle's own `bcrypt-node`, inside the container.** `pixl-server-user` stores `bcrypt.hashSync(plaintext + user.salt)` — the per-user salt is part of the input, so a hash produced any other way is rejected at login rather than failing loudly.
-- **The admin record's path is MD5-sharded and hardcoded.** `pixl-server-storage`'s filesystem engine maps the key `users/admin` to `data/users/34/68/bc/3468bc0c4e5f6aa06c7aee62212ac18f.json`. Both the fresh-install path (patch `conf/setup.json` before setup runs) and the existing-install path (patch the live record) are needed — neither covers the other.
-- **`clear-pending-admin-password` is gated on the apply oneshot** so a failed apply retries on the next start instead of dropping the password silently.
-- **Plugin dependencies install at start-up, not at deploy time.** The `install-plugin-deps` oneshot is what makes a deployed plugin survive an image update; it skips any plugin that already has its modules.
-- **`conf/config.json` is seeded from the image's sample only when absent, then patched in place for SMTP alone.** Don't regenerate it — everything else in that file is the user's.
+- **Hash passwords with Cronicle's own `bcrypt-node`, inside the container.** `pixl-server-user` hashes `plaintext + user.salt`, so a hash produced any other way is rejected at login rather than failing loudly.
+- **The admin record's path is hardcoded from its MD5-sharded storage key.** `users/admin` lives at `data/users/34/68/bc/3468bc0c4e5f6aa06c7aee62212ac18f.json`; keep both the `conf/setup.json` patch and the live-record patch, since neither covers the other's case.
+- **Keep `clear-pending-admin-password` gated on `set-admin-password`**, or a failed apply drops the pending password instead of retrying on the next start.
+- **Don't regenerate `conf/config.json`.** Only its SMTP fields are the package's; everything else in it is the user's.
