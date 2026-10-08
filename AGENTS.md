@@ -34,7 +34,7 @@ verified, tried, and decided belongs in the commit message and the PR body.
 
 ## This repo
 
-- **Hash passwords with Cronicle's own `bcrypt-node`, inside the container.** `pixl-server-user` hashes `plaintext + user.salt`, so a hash produced any other way is rejected at login rather than failing loudly.
+- **Hash passwords with Cronicle's own `bcryptjs`, inside the container.** `pixl-server-user` hashes `plaintext + user.salt`, so a hash produced any other way is rejected at login rather than failing loudly.
 - **The admin record's path is hardcoded from its MD5-sharded storage key.** `users/admin` lives at `data/users/34/68/bc/3468bc0c4e5f6aa06c7aee62212ac18f.json`; keep both the `conf/setup.json` patch and the live-record patch, since neither covers the other's case.
 - **Keep `clear-pending-admin-password` gated on `set-admin-password`**, or a failed apply drops the pending password instead of retrying on the next start.
 - **Don't regenerate `conf/config.json`.** Only its SMTP fields are the package's; everything else in it is the user's.

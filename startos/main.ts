@@ -168,12 +168,12 @@ try {
   )
 
   // Write a password patch script to the subcontainer rootfs. It runs inside the
-  // container and uses Cronicle's own bcrypt-node module, so the hash format
+  // container and uses Cronicle's own bcryptjs module, so the hash format
   // matches what Cronicle expects. Two cases are covered:
   //   Fresh install  — patches conf/setup.json before the entrypoint runs setup
   //   Existing data  — finds and patches admin.json already in the data volume
   if (pendingAdminPassword) {
-    // pixl-server-user (Cronicle's auth layer) uses bcrypt-node and the formula:
+    // pixl-server-user (Cronicle's auth layer) uses bcryptjs and the formula:
     //   store:  bcrypt.hashSync(plaintext + userSalt)        — userSalt is user.salt field
     //   verify: bcrypt.compareSync(plaintext + userSalt, hash)
     //
@@ -181,7 +181,7 @@ try {
     //   key "users/admin" → data/users/<md5[0:2]>/<md5[2:4]>/<md5[4:6]>/<md5>.json
     //   MD5("users/admin") = 3468bc0c4e5f6aa06c7aee62212ac18f (constant, hardcoded below)
     const patchScript = `
-const bcrypt = require('/opt/cronicle/node_modules/bcrypt-node');
+const bcrypt = require('/opt/cronicle/node_modules/bcryptjs');
 const fs = require('fs');
 const password = ${JSON.stringify(pendingAdminPassword)};
 
