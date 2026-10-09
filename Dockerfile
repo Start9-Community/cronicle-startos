@@ -7,9 +7,9 @@
 # entrypoint) is adapted from soulteary/docker-cronicle (MIT); everything else is
 # stock Cronicle installed to its default /opt/cronicle layout.
 
-ARG CRONICLE_VERSION=0.9.123
+ARG CRONICLE_VERSION=0.9.135
 
-FROM node:20-bullseye AS builder
+FROM node:22-bullseye AS builder
 ARG CRONICLE_VERSION
 WORKDIR /opt/cronicle
 RUN curl -fsSL -o /tmp/cronicle.tar.gz \
@@ -28,7 +28,7 @@ COPY assets/docker-entrypoint.js ./bin/docker-entrypoint.js
 # Build the browser bundle (htdocs/js/_combo.js) and initialize storage.
 RUN node bin/build.js dist && bin/control.sh setup
 
-FROM node:20-alpine
+FROM node:22-alpine
 RUN apk add --no-cache bash curl procps
 COPY --from=builder /opt/cronicle /opt/cronicle
 WORKDIR /opt/cronicle
