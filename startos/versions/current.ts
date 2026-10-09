@@ -1,4 +1,6 @@
+import { readdir, rm, stat } from 'node:fs/promises'
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
+import { sdk } from '../sdk'
 
 export const current = VersionInfo.of({
   version: '0.9.135:0',
@@ -10,6 +12,7 @@ export const current = VersionInfo.of({
 - The HTTP Request plugin keeps the response status code in the job result when response matching fails.
 - Cronicle now runs on Node.js 22.
 - Updated dependencies with security fixes, including the email library.
+- The Node.js 22 upgrade reinstalls deployed plugins' npm dependencies on the first start. Outbound access is required, and dependencies must support Node.js 22.
 - Set Admin Password asks for confirmation before replacing a password that is already set.
 - Remove Plugin starts with no plugin selected, and its field description explains how each entry matches a plugin registered in Cronicle.
 - The service description names the action that gives you your login details.
@@ -23,6 +26,7 @@ Full release notes: https://github.com/jhuckaby/Cronicle/releases`,
 - El complemento HTTP Request conserva el código de estado de la respuesta en el resultado de la tarea cuando falla la comprobación de la respuesta.
 - Cronicle ahora se ejecuta en Node.js 22.
 - Dependencias actualizadas con correcciones de seguridad, incluida la biblioteca de correo electrónico.
+- La actualización a Node.js 22 reinstala las dependencias npm de los complementos desplegados en el primer inicio. Se requiere acceso saliente y las dependencias deben ser compatibles con Node.js 22.
 - Establecer contraseña de administrador pide confirmación antes de reemplazar una contraseña ya establecida.
 - Eliminar complemento empieza sin ningún complemento seleccionado, y la descripción de su campo explica cómo cada entrada corresponde a un complemento registrado en Cronicle.
 - La descripción del servicio nombra la acción que te da tus credenciales de acceso.
@@ -36,6 +40,7 @@ Notas de la versión completas: https://github.com/jhuckaby/Cronicle/releases`,
 - Das HTTP-Request-Plugin behält den Statuscode der Antwort im Job-Ergebnis, wenn der Abgleich der Antwort fehlschlägt.
 - Cronicle läuft jetzt mit Node.js 22.
 - Abhängigkeiten mit Sicherheitskorrekturen aktualisiert, darunter die E-Mail-Bibliothek.
+- Beim Upgrade auf Node.js 22 werden die npm-Abhängigkeiten bereitgestellter Plugins beim ersten Start neu installiert. Ausgehender Netzwerkzugriff ist erforderlich, und die Abhängigkeiten müssen Node.js 22 unterstützen.
 - „Admin-Passwort festlegen“ fragt nach einer Bestätigung, bevor ein bereits festgelegtes Passwort ersetzt wird.
 - „Plugin entfernen“ beginnt ohne ausgewähltes Plugin, und die Beschreibung des Feldes erklärt, wie jeder Eintrag einem in Cronicle registrierten Plugin entspricht.
 - Die Dienstbeschreibung nennt die Aktion, die dir deine Zugangsdaten liefert.
@@ -49,6 +54,7 @@ Vollständige Versionshinweise: https://github.com/jhuckaby/Cronicle/releases`,
 - Wtyczka HTTP Request zachowuje kod statusu odpowiedzi w wyniku zadania, gdy dopasowanie odpowiedzi się nie powiedzie.
 - Cronicle działa teraz na Node.js 22.
 - Zaktualizowano zależności z poprawkami bezpieczeństwa, w tym bibliotekę poczty e-mail.
+- Aktualizacja do Node.js 22 ponownie instaluje zależności npm wdrożonych wtyczek przy pierwszym uruchomieniu. Wymagany jest dostęp do sieci wychodzącej, a zależności muszą obsługiwać Node.js 22.
 - „Ustaw hasło administratora” prosi o potwierdzenie przed zastąpieniem już ustawionego hasła.
 - „Usuń wtyczkę” zaczyna bez wybranej wtyczki, a opis pola wyjaśnia, jak każda pozycja odpowiada wtyczce zarejestrowanej w Cronicle.
 - Opis usługi podaje akcję, która zwraca dane logowania.
@@ -62,6 +68,7 @@ Pełne informacje o wydaniu: https://github.com/jhuckaby/Cronicle/releases`,
 - Le plugin HTTP Request conserve le code d'état de la réponse dans le résultat de la tâche lorsque la vérification de la réponse échoue.
 - Cronicle fonctionne désormais sous Node.js 22.
 - Dépendances mises à jour avec des correctifs de sécurité, dont la bibliothèque de courriel.
+- La mise à niveau vers Node.js 22 réinstalle les dépendances npm des plugins déployés au premier démarrage. Un accès réseau sortant est requis et les dépendances doivent prendre en charge Node.js 22.
 - Définir le mot de passe administrateur demande une confirmation avant de remplacer un mot de passe déjà défini.
 - Supprimer le plugin démarre sans plugin sélectionné, et la description de son champ explique comment chaque entrée correspond à un plugin enregistré dans Cronicle.
 - La description du service indique l'action qui vous donne vos identifiants de connexion.
@@ -70,7 +77,27 @@ Pełne informacje o wydaniu: https://github.com/jhuckaby/Cronicle/releases`,
 Notes de version complètes : https://github.com/jhuckaby/Cronicle/releases`,
   },
   migrations: {
-    up: async () => {},
+    up: async () => {
+      const plugins = await readdir(sdk.volumes.main.subpath('plugins'), {
+        withFileTypes: true,
+      }).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return []
+        throw error
+      })
+
+      for (const plugin of plugins) {
+        if (!plugin.isDirectory()) continue
+        const pluginPath = sdk.volumes.main.subpath(`plugins/${plugin.name}`)
+        const manifest = await stat(`${pluginPath}/package.json`).catch(
+          (error: NodeJS.ErrnoException) => {
+            if (error.code === 'ENOENT') return null
+            throw error
+          },
+        )
+        if (!manifest?.isFile()) continue
+        await rm(`${pluginPath}/node_modules`, { recursive: true, force: true })
+      }
+    },
     down: IMPOSSIBLE,
   },
 })

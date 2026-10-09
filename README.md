@@ -121,6 +121,8 @@ Then the daemon starts, and a fifth step clears the pending password — gated o
 
 Install raises a critical task to set that password; nothing is reachable until it is done.
 
+**Upgrading to 0.9.135:0 (Node.js 22)** removes only the generated `node_modules` in deployed plugin directories with a `package.json`. Plugin scripts, manifests, lockfiles, and other contents are preserved. The first start reinstalls those npm dependencies for Node.js 22 before starting Cronicle. This requires outbound access to the dependencies' registries and download sources (e.g. via StartTunnel); the dependencies must support Node.js 22. Installation failures block startup and are retried on the next start while `node_modules` is absent.
+
 ## Actions
 
 Four actions.

@@ -15,6 +15,10 @@ Cronicle is a self-hosted task scheduler with a web UI — a visual replacement 
 - **Deploy Node.js Plugin** — write a custom Node.js plugin script to disk. After deploying, register it inside Cronicle under **Admin → Plugins** using the script path the action returns. If your plugin needs npm packages, supply a `package.json`; dependencies install on the next restart (this requires outbound internet access — e.g. via StartTunnel).
 - **Remove Plugin** — delete a previously deployed plugin script from disk. Remove its entry in **Admin → Plugins** first to avoid broken job references.
 
+## Upgrading to Node.js 22
+
+The update to 0.9.135:0 removes installed npm dependencies from deployed plugins with a `package.json` and reinstalls them on the first start. Your plugin scripts, manifests, lockfiles, and other files are preserved. Ensure outbound access to npm registries and other dependency download sources (e.g. via StartTunnel) before starting, and check that your plugin dependencies support Node.js 22. If dependency installation fails, Cronicle will not start; check the service logs.
+
 ## Things to know
 
 - **Live job logs** are routed through the StartOS proxy, so watching a running job's output in the browser works out of the box for jobs running on this server.
