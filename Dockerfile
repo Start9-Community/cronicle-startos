@@ -17,7 +17,8 @@ RUN curl -fsSL -o /tmp/cronicle.tar.gz \
  && tar zxf /tmp/cronicle.tar.gz -C /tmp \
  && mv "/tmp/Cronicle-${CRONICLE_VERSION}"/* . \
  && rm -rf /tmp/* \
- && npm install --unsafe-perm
+ && npm install --unsafe-perm \
+ && npm install --save-exact shell-quote@1.11.0
 # StartOS runs exactly one Cronicle node (never a worker): force it to elect
 # itself master so it schedules jobs. Anchored on a stable source string so it
 # survives version drift (fails the build loudly if Cronicle's internals move).
@@ -26,7 +27,12 @@ RUN node /tmp/patch-engine.js
 # First-boot storage init + single-node server self-registration.
 COPY assets/docker-entrypoint.js ./bin/docker-entrypoint.js
 # Build the browser bundle (htdocs/js/_combo.js) and initialize storage.
-RUN node bin/build.js dist && bin/control.sh setup
+COPY assets/patch-build.js /tmp/patch-build.js
+RUN node /tmp/patch-build.js \
+ && node bin/build.js dist \
+ && test -s htdocs/js/_combo.js \
+ && test -s htdocs/css/_combo.css \
+ && bin/control.sh setup
 
 FROM node:22-alpine
 RUN apk add --no-cache bash curl procps

@@ -35,7 +35,7 @@
 
 ## Image and Container Runtime
 
-One image, built here from a pinned upstream version.
+One image, built here from a pinned upstream version. The build updates Cronicle's `shell-quote` dependency to a patched release for [GHSA-pqg4-j6r4-53mv](https://github.com/advisories/GHSA-pqg4-j6r4-53mv).
 
 | Property      | Value                                      |
 | ------------- | ------------------------------------------ |
@@ -52,6 +52,8 @@ One image, built here from a pinned upstream version.
 It is done by string replacement against markers in the bundle, and **it fails loudly**: if a marker is missing the service refuses to start rather than serving a subtly broken UI. That is deliberate — a silent failure here looks like "live logs are broken" with nothing to point at. An upstream version bump is the thing that breaks it.
 
 The pre-compressed copy of the bundle is deleted in the same step, so the web server cannot serve the stale original.
+
+The build patches Cronicle's copy and gzip helpers to wait for the output stream to finish. Upstream signals completion when the input ends, which can leave the next build step reading an incomplete file. The image build also requires nonempty JavaScript and CSS bundles before initializing storage.
 
 The daemon runs in foreground mode; everything else about the image is upstream's.
 
