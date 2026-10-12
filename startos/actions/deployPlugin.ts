@@ -154,6 +154,7 @@ export const deployPlugin = sdk.Action.withInput(
         masked: false,
         copyable: true,
         qr: false,
+        launchable: false,
       },
     }
   },
