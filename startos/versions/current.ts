@@ -1,13 +1,13 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.9.135:3',
+  version: '0.9.135:4',
   releaseNotes: {
-    en_US: `Adds Forward Email to the SMTP provider presets.`,
-    es_ES: `Añade Forward Email a los proveedores SMTP predefinidos.`,
-    de_DE: `Fügt Forward Email zu den vordefinierten SMTP-Anbietern hinzu.`,
-    pl_PL: `Dodaje Forward Email do predefiniowanych dostawców SMTP.`,
-    fr_FR: `Ajoute Forward Email aux fournisseurs SMTP prédéfinis.`,
+    en_US: 'Updates Node.js to 22.23.4 with security fixes.',
+    es_ES: 'Actualiza Node.js a 22.23.4 con correcciones de seguridad.',
+    de_DE: 'Aktualisiert Node.js auf 22.23.4 mit Sicherheitskorrekturen.',
+    pl_PL: 'Aktualizuje Node.js do wersji 22.23.4 z poprawkami bezpieczeństwa.',
+    fr_FR: 'Met à jour Node.js vers 22.23.4 avec des correctifs de sécurité.',
   },
   migrations: {
     up: async () => {},
