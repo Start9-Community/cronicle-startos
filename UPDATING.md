@@ -17,6 +17,14 @@ This package builds Cronicle **from source** from the official
   downloads `Cronicle/archive/refs/tags/v${CRONICLE_VERSION}.tar.gz`, so drop the
   leading `v`).
 
+**Node.js runtime** — the `Dockerfile`'s final stage pins `node:<version>-alpine` by tag and
+digest. Move it to the newest release of its line whenever Node.js publishes a security
+release, tag and digest together:
+
+```sh
+docker buildx imagetools inspect node:<version>-alpine   # Digest: line
+```
+
 ## Applying the bump
 
 1. Bump `CRONICLE_VERSION` in `startos/manifest/index.ts` (and the `ARG`
