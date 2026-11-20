@@ -29,6 +29,18 @@ docker buildx imagetools inspect node:<version>-alpine   # Digest: line
 
 1. Bump `CRONICLE_VERSION` in `startos/manifest/index.ts` (and the `ARG`
    default in `Dockerfile`) to the new version, dropping the leading `v`.
+   Set `CRONICLE_SHA256` in `Dockerfile` to the new tarball's hash, which the
+   build checks before extracting it:
+
+   ```sh
+   curl -fsSL https://github.com/jhuckaby/Cronicle/archive/refs/tags/v<version>.tar.gz | sha256sum
+   ```
+
+   Cronicle publishes no checksums or signatures, so confirm the tarball's
+   `comment=` header (`gzip -dc <file> | head -c 1100 | strings`) names the
+   commit `git ls-remote https://github.com/jhuckaby/Cronicle.git 'refs/tags/v<version>^{}'`
+   reports.
+
 2. **Re-verify the two vendored Docker patches still apply** to the new source:
    - `assets/patch-engine.js` anchors on the string `// determine master server
 eligibility` in `lib/engine.js` and injects a single-node `goMaster()`. The

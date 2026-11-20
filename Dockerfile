@@ -2,18 +2,22 @@
 #
 # This replaces the third-party `soulteary/cronicle` image, which stalled at
 # 0.9.80 (mid-2025). Building from the upstream tarball ourselves lets the
-# package track Cronicle directly — future bumps are a one-line CRONICLE_VERSION
-# change. The Docker glue (single-node master-election patch + first-boot
-# entrypoint) is adapted from soulteary/docker-cronicle (MIT); everything else is
-# stock Cronicle installed to its default /opt/cronicle layout.
+# package track Cronicle directly — a bump moves CRONICLE_VERSION and the
+# tarball's CRONICLE_SHA256 together. The Docker glue (single-node
+# master-election patch + first-boot entrypoint) is adapted from
+# soulteary/docker-cronicle (MIT); everything else is stock Cronicle installed
+# to its default /opt/cronicle layout.
 
 ARG CRONICLE_VERSION=0.9.135
+ARG CRONICLE_SHA256=96dcfebd7682df31134cfea2fa5e0f5d372fcddbfb82488e9ce0a12122367cd1
 
 FROM node:22-bullseye AS builder
 ARG CRONICLE_VERSION
+ARG CRONICLE_SHA256
 WORKDIR /opt/cronicle
 RUN curl -fsSL -o /tmp/cronicle.tar.gz \
       "https://github.com/jhuckaby/Cronicle/archive/refs/tags/v${CRONICLE_VERSION}.tar.gz" \
+ && echo "${CRONICLE_SHA256}  /tmp/cronicle.tar.gz" | sha256sum -c - \
  && tar zxf /tmp/cronicle.tar.gz -C /tmp \
  && mv "/tmp/Cronicle-${CRONICLE_VERSION}"/* . \
  && rm -rf /tmp/* \
