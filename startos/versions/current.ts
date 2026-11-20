@@ -1,13 +1,13 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.9.135:5',
+  version: '0.9.135:6',
   releaseNotes: {
-    en_US: `Updates Node.js to 22.23.5 with the November 2026 security fixes.`,
-    es_ES: `Actualiza Node.js a 22.23.5 con las correcciones de seguridad de noviembre de 2026.`,
-    de_DE: `Aktualisiert Node.js auf 22.23.5 mit den Sicherheitskorrekturen vom November 2026.`,
-    pl_PL: `Aktualizuje Node.js do wersji 22.23.5 z poprawkami bezpieczeństwa z listopada 2026 r.`,
-    fr_FR: `Met à jour Node.js vers 22.23.5 avec les correctifs de sécurité de novembre 2026.`,
+    en_US: `Packaging update: the Cronicle source is checked against the exact release before it is built. Nothing changes in how Cronicle runs.`,
+    es_ES: `Actualización del empaquetado: el código fuente de Cronicle se verifica contra la versión exacta antes de compilarse. No cambia nada en el funcionamiento de Cronicle.`,
+    de_DE: `Paketierungs-Update: Der Cronicle-Quellcode wird vor dem Bauen gegen die exakte Version geprüft. An der Funktionsweise von Cronicle ändert sich nichts.`,
+    pl_PL: `Aktualizacja pakietu: kod źródłowy Cronicle jest sprawdzany względem dokładnego wydania przed kompilacją. Działanie Cronicle się nie zmienia.`,
+    fr_FR: `Mise à jour de l'empaquetage : le code source de Cronicle est vérifié par rapport à la version exacte avant d'être compilé. Rien ne change dans le fonctionnement de Cronicle.`,
   },
   migrations: {
     up: async () => {},

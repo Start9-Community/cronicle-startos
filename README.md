@@ -35,7 +35,7 @@
 
 ## Image and Container Runtime
 
-One image, built here from a pinned upstream version. The build updates Cronicle's `shell-quote` dependency to a patched release for [GHSA-pqg4-j6r4-53mv](https://github.com/advisories/GHSA-pqg4-j6r4-53mv).
+One image, built here from a pinned upstream version whose release tarball must match a pinned SHA-256. The build updates Cronicle's `shell-quote` dependency to a patched release for [GHSA-pqg4-j6r4-53mv](https://github.com/advisories/GHSA-pqg4-j6r4-53mv).
 
 | Property      | Value                                      |
 | ------------- | ------------------------------------------ |
