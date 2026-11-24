@@ -106,7 +106,7 @@ One interface.
 
 Bound on the `ui-multi` MultiHost over HTTP and not masked.
 
-**Cronicle is designed as a multi-server system, and this package is the master only.** External worker servers connect _to_ it, and the front-end patch above deliberately preserves direct connections for jobs that ran on a worker — only jobs on this server are routed through the proxy.
+**Cronicle is designed as a multi-server system, and this package is the master only.** External worker servers connect _to_ it with the master's `secret_key`, which the Show Secret Key action displays, and the front-end patch above deliberately preserves direct connections for jobs that ran on a worker — only jobs on this server are routed through the proxy.
 
 ## Installation and First-Run Flow
 
@@ -127,7 +127,7 @@ Install raises a critical task to set that password; nothing is reachable until 
 
 ## Actions
 
-Four actions.
+Five actions.
 
 ### Set Admin Password
 
@@ -166,6 +166,13 @@ Deletes a deployed plugin, chosen from a list of the plugins on the volume, each
 - **What it changes:** removes the plugin's script file or directory from the volume.
 - **Repeat safety:** idempotent.
 - **It does not clean up inside Cronicle.** Jobs still referencing the plugin will fail rather than disappear — remove them in the UI too.
+
+### Show Secret Key
+
+Shows the `secret_key` from Cronicle's `conf/config.json`, masked and copyable. Every external worker server must carry the same `secret_key` to join this master.
+
+- **What it changes:** nothing; it only reads the config.
+- **Availability:** any status. Before the first start there is no config yet, and the action says so.
 
 ## Tasks
 
@@ -238,6 +245,7 @@ actions:
   - manage-smtp
   - deploy-plugin
   - remove-plugin
+  - show-secret-key
 tasks:
   - { action: set-admin-password, severity: critical }
 health_checks:

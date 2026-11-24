@@ -14,11 +14,12 @@ Cronicle is a self-hosted task scheduler with a web UI — a visual replacement 
 - **Configure SMTP** — set up outgoing email so Cronicle can send job notifications. Choose the StartOS system mail server (if you've configured one in StartOS settings) or enter a custom provider. Without SMTP configured, Cronicle cannot send notification emails.
 - **Deploy Node.js Plugin** — write a custom Node.js plugin script to disk. After deploying, register it inside Cronicle under **Admin → Plugins** using the script path the action returns. If your plugin needs npm packages, supply a `package.json`; dependencies install on the next restart (this requires outbound internet access — e.g. via StartTunnel).
 - **Remove Plugin** — delete a previously deployed plugin script from disk. Remove its entry in **Admin → Plugins** first to avoid broken job references.
+- **Show Secret Key** — shows this server's Cronicle secret key. Every external worker server must use the same key: set it as `secret_key` in each worker's `conf/config.json`.
 
 ## Things to know
 
 - **Live job logs** are routed through the StartOS proxy, so watching a running job's output in the browser works out of the box for jobs running on this server.
-- **Multi-server clustering** works for external workers reachable by public hostname or IP. Workers reachable only on a private/container network won't be accessible from your browser.
+- **Multi-server clustering** works for external workers reachable by public hostname or IP, once each is configured with the key from **Show Secret Key**. Workers reachable only on a private/container network won't be accessible from your browser.
 - **Backups** capture all Cronicle data — jobs, history, configuration, and deployed plugins. Your admin password is part of that data, so it carries over after a restore.
 
 ## Documentation
