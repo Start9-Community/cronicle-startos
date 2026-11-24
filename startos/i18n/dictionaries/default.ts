@@ -55,6 +55,13 @@ const dict = {
   'No custom plugins have been deployed yet.': 38,
   'Plugin "${plugin}" was not found. It may have already been removed.': 39,
   'Plugin "${plugin}" has been deleted from disk. If a Cronicle plugin entry still points to this script, remove it from Admin → Plugins to avoid errors.': 40,
+
+  // actions/showSecretKey.ts
+  'Show Secret Key': 41,
+  "Show Cronicle's secret key, which each external worker server must use to join this server.": 42,
+  'Cronicle has not generated its secret key yet. Start the service once, then run this action again.': 43,
+  'Cronicle Secret Key': 44,
+  'Set this as secret_key in conf/config.json on each external worker server, then restart it.': 45,
 } as const
 
 /**

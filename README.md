@@ -90,7 +90,7 @@ That is also why the guard is a separate field: clearing the trigger must not dr
 
 The SMTP selection **is** read reactively, so changing it restarts the service and re-applies it.
 
-**Cronicle's own `config.json` is not modelled.** It is seeded from the image's sample on first start, and thereafter patched in place by a start-up script for the SMTP fields only. Everything else in it is the user's, and survives.
+**Cronicle's own `config.json` is not modelled.** It is seeded from the image's sample on first start with a newly generated random `secret_key`, and thereafter patched in place by a start-up script for the SMTP fields only. Everything else in it is the user's, and survives.
 
 ## Dependencies
 
@@ -106,13 +106,13 @@ One interface.
 
 Bound on the `ui-multi` MultiHost over HTTP and not masked.
 
-**Cronicle is designed as a multi-server system, and this package is the master only.** External worker servers connect _to_ it, and the front-end patch above deliberately preserves direct connections for jobs that ran on a worker — only jobs on this server are routed through the proxy.
+**Cronicle is designed as a multi-server system, and this package is the master only.** External worker servers connect _to_ it with the master's `secret_key`, which the Show Secret Key action displays, and the front-end patch above deliberately preserves direct connections for jobs that ran on a worker — only jobs on this server are routed through the proxy.
 
 ## Installation and First-Run Flow
 
 Start-up is a chain of four steps before the daemon, and the order is load-bearing:
 
-1. **Seed the configuration** — copy the image's sample config in, but only if none exists.
+1. **Seed the configuration** — copy the image's sample config in, but only if none exists, giving it a random `secret_key` of its own. The key in the image's sample is never used.
 2. **Install plugin dependencies** — for each deployed plugin that has a manifest and no installed modules, install them. This is what makes a plugin survive an image update.
 3. **Apply SMTP** — patch the email fields into Cronicle's config.
 4. **Apply the admin password**, if one is pending.
@@ -127,7 +127,7 @@ Install raises a critical task to set that password; nothing is reachable until 
 
 ## Actions
 
-Four actions.
+Five actions.
 
 ### Set Admin Password
 
@@ -166,6 +166,13 @@ Deletes a deployed plugin, chosen from a list of the plugins on the volume, each
 - **What it changes:** removes the plugin's script file or directory from the volume.
 - **Repeat safety:** idempotent.
 - **It does not clean up inside Cronicle.** Jobs still referencing the plugin will fail rather than disappear — remove them in the UI too.
+
+### Show Secret Key
+
+Shows the `secret_key` from Cronicle's `conf/config.json`, masked and copyable. Every external worker server must carry the same `secret_key` to join this master.
+
+- **What it changes:** nothing; it only reads the config.
+- **Availability:** any status. Before the first start there is no config yet, and the action says so.
 
 ## Tasks
 
@@ -206,7 +213,7 @@ The one thing to know is that logs and job history are in the backup too, so its
 3. **The admin password is applied at start-up, not live**, so setting it restarts the service — and overrides a password changed inside Cronicle.
 4. **Plugin dependencies install on the next start**, not when a plugin is deployed.
 5. **Deploying a plugin does not register it** in Cronicle; that is still done in the UI.
-6. **Only the SMTP fields of Cronicle's config are managed.** Everything else in it is yours, and is not reset.
+6. **Only the SMTP fields of Cronicle's config are managed**, plus its `secret_key` when the config is first seeded. Everything else in it is yours, and is not reset.
 
 ---
 
@@ -238,6 +245,7 @@ actions:
   - manage-smtp
   - deploy-plugin
   - remove-plugin
+  - show-secret-key
 tasks:
   - { action: set-admin-password, severity: critical }
 health_checks:
