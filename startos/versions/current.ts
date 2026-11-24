@@ -1,16 +1,39 @@
+import { randomBytes } from 'node:crypto'
+import { readFile, writeFile } from 'node:fs/promises'
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
+import { sdk } from '../sdk'
 
 export const current = VersionInfo.of({
-  version: '0.9.135:6',
+  version: '0.9.135:7',
   releaseNotes: {
-    en_US: `Packaging update: the Cronicle source is checked against the exact release before it is built. Nothing changes in how Cronicle runs.`,
-    es_ES: `Actualización del empaquetado: el código fuente de Cronicle se verifica contra la versión exacta antes de compilarse. No cambia nada en el funcionamiento de Cronicle.`,
-    de_DE: `Paketierungs-Update: Der Cronicle-Quellcode wird vor dem Bauen gegen die exakte Version geprüft. An der Funktionsweise von Cronicle ändert sich nichts.`,
-    pl_PL: `Aktualizacja pakietu: kod źródłowy Cronicle jest sprawdzany względem dokładnego wydania przed kompilacją. Działanie Cronicle się nie zmienia.`,
-    fr_FR: `Mise à jour de l'empaquetage : le code source de Cronicle est vérifié par rapport à la version exacte avant d'être compilé. Rien ne change dans le fonctionnement de Cronicle.`,
+    en_US: `Cronicle's secret key is now unique to each server. This update replaces the existing key with a new random one.`,
+    es_ES: `La clave secreta de Cronicle ahora es única para cada servidor. Esta actualización reemplaza la clave existente por una nueva generada al azar.`,
+    de_DE: `Der geheime Schlüssel von Cronicle ist jetzt für jeden Server eindeutig. Dieses Update ersetzt den bestehenden Schlüssel durch einen neuen, zufällig erzeugten.`,
+    pl_PL: `Tajny klucz Cronicle jest teraz unikalny dla każdego serwera. Ta aktualizacja zastępuje istniejący klucz nowym, losowo wygenerowanym.`,
+    fr_FR: `La clé secrète de Cronicle est désormais propre à chaque serveur. Cette mise à jour remplace la clé existante par une nouvelle clé aléatoire.`,
   },
   migrations: {
-    up: async () => {},
+    up: async () => {
+      const configPath = sdk.volumes.main.subpath('conf/config.json')
+      const config = await readFile(configPath, 'utf8').catch(
+        (error: NodeJS.ErrnoException) => {
+          if (error.code === 'ENOENT') return null
+          throw error
+        },
+      )
+      if (config === null) return
+      await writeFile(
+        configPath,
+        JSON.stringify(
+          {
+            ...JSON.parse(config),
+            secret_key: randomBytes(32).toString('hex'),
+          },
+          null,
+          '\t',
+        ),
+      )
+    },
     down: IMPOSSIBLE,
   },
 })

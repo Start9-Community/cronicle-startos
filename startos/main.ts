@@ -239,9 +239,17 @@ if (fs.existsSync(dataFile)) {
       subcontainer: cronicleSub,
       exec: {
         command: [
-          'sh',
-          '-c',
-          'test -f /opt/cronicle/conf/config.json || cp -r /opt/cronicle/sample_conf/. /opt/cronicle/conf/',
+          'node',
+          '-e',
+          `const fs = require('fs');
+const sample = '/opt/cronicle/sample_conf';
+const conf = '/opt/cronicle/conf';
+if (!fs.existsSync(conf + '/config.json')) {
+  fs.cpSync(sample, conf, { recursive: true, filter: (src) => src !== sample + '/config.json' });
+  const cfg = JSON.parse(fs.readFileSync(sample + '/config.json', 'utf8'));
+  cfg.secret_key = require('crypto').randomBytes(32).toString('hex');
+  fs.writeFileSync(conf + '/config.json', JSON.stringify(cfg, null, '\\t'));
+}`,
         ],
       },
       requires: [],

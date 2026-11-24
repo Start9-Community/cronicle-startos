@@ -90,7 +90,7 @@ That is also why the guard is a separate field: clearing the trigger must not dr
 
 The SMTP selection **is** read reactively, so changing it restarts the service and re-applies it.
 
-**Cronicle's own `config.json` is not modelled.** It is seeded from the image's sample on first start, and thereafter patched in place by a start-up script for the SMTP fields only. Everything else in it is the user's, and survives.
+**Cronicle's own `config.json` is not modelled.** It is seeded from the image's sample on first start with a newly generated random `secret_key`, and thereafter patched in place by a start-up script for the SMTP fields only. Everything else in it is the user's, and survives.
 
 ## Dependencies
 
@@ -112,7 +112,7 @@ Bound on the `ui-multi` MultiHost over HTTP and not masked.
 
 Start-up is a chain of four steps before the daemon, and the order is load-bearing:
 
-1. **Seed the configuration** — copy the image's sample config in, but only if none exists.
+1. **Seed the configuration** — copy the image's sample config in, but only if none exists, giving it a random `secret_key` of its own. The key in the image's sample is never used.
 2. **Install plugin dependencies** — for each deployed plugin that has a manifest and no installed modules, install them. This is what makes a plugin survive an image update.
 3. **Apply SMTP** — patch the email fields into Cronicle's config.
 4. **Apply the admin password**, if one is pending.
@@ -122,6 +122,8 @@ Then the daemon starts, and a fifth step clears the pending password — gated o
 **The password is applied two ways because there are two cases.** On a fresh install it patches Cronicle's setup file before first-run setup consumes it; on an existing install it patches the live admin record directly. The hash is produced by **Cronicle's own bcrypt module**, inside the container, so it is a hash Cronicle will accept rather than one that merely looks right.
 
 Install raises a critical task to set that password; nothing is reachable until it is done.
+
+**Upgrading to 0.9.135:7** replaces the `secret_key` in Cronicle's config with a new random one, once. Worker servers and job log links that relied on the previous key stop authenticating until they use the new one.
 
 **Upgrading to 0.9.135:0 (Node.js 22)** removes only the generated `node_modules` in deployed plugin directories with a `package.json`. Plugin scripts, manifests, lockfiles, and other contents are preserved. The first start reinstalls those npm dependencies for Node.js 22 before starting Cronicle. This requires outbound access to the dependencies' registries and download sources (e.g. via StartTunnel); the dependencies must support Node.js 22. Installation failures block startup and are retried on the next start while `node_modules` is absent.
 
@@ -206,7 +208,7 @@ The one thing to know is that logs and job history are in the backup too, so its
 3. **The admin password is applied at start-up, not live**, so setting it restarts the service — and overrides a password changed inside Cronicle.
 4. **Plugin dependencies install on the next start**, not when a plugin is deployed.
 5. **Deploying a plugin does not register it** in Cronicle; that is still done in the UI.
-6. **Only the SMTP fields of Cronicle's config are managed.** Everything else in it is yours, and is not reset.
+6. **Only the SMTP fields of Cronicle's config are managed**, plus its `secret_key` when the config is first seeded. Everything else in it is yours, and is not reset.
 
 ---
 
